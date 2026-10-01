@@ -64,7 +64,6 @@ export class PlayerController {
     this.recoilRecoverySpeed = 15.0;
 
     this.isPointerLocked = false;
-    this.ignoreNextPointerMove = false;
     this.initInputListeners();
     this.updateCameraFov();
   }
@@ -118,17 +117,30 @@ export class PlayerController {
   }
 
   requestPointerLock() {
-    if (this.domElement && this.domElement.requestPointerLock) {
-      try {
-        const res = this.domElement.requestPointerLock();
-        if (res && typeof res.catch === 'function') {
-          res.catch(err => {
-            console.warn('Pointer lock request ignored or deferred by browser:', err);
-          });
-        }
-      } catch (err) {
-        console.warn('Pointer lock error:', err);
+    if (!this.domElement || !this.domElement.requestPointerLock) return;
+
+    const handleRequestError = (error, requestedRawInput) => {
+      if (requestedRawInput && (error.name === 'NotSupportedError' || error.name === 'TypeError')) {
+        this.requestPointerLockWithRawInput(false);
+        return;
       }
+      console.warn('Pointer lock request failed:', error);
+    };
+
+    this.requestPointerLockWithRawInput(true, handleRequestError);
+  }
+
+  requestPointerLockWithRawInput(requestRawInput, handleError = (error) => console.warn('Pointer lock request failed:', error)) {
+    try {
+      const result = requestRawInput
+        ? this.domElement.requestPointerLock({ unadjustedMovement: true })
+        : this.domElement.requestPointerLock();
+
+      if (result && typeof result.catch === 'function') {
+        result.catch((error) => handleError(error, requestRawInput));
+      }
+    } catch (error) {
+      handleError(error, requestRawInput);
     }
   }
 
@@ -153,20 +165,11 @@ export class PlayerController {
 
     document.addEventListener('pointerlockchange', () => {
       const isLocked = document.pointerLockElement === this.domElement;
-      if (isLocked && !this.isPointerLocked) {
-        // Some browsers report the cursor's pre-lock position as the first
-        // relative movement. Ignore that one sample to prevent a lock-on snap.
-        this.ignoreNextPointerMove = true;
-      }
       this.isPointerLocked = isLocked;
     });
 
     window.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement !== this.domElement) return;
-      if (this.ignoreNextPointerMove) {
-        this.ignoreNextPointerMove = false;
-        return;
-      }
       this.handleMouseMove(e.movementX, e.movementY);
     });
   }
