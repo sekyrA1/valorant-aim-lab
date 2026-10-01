@@ -64,6 +64,7 @@ export class PlayerController {
     this.recoilRecoverySpeed = 15.0;
 
     this.isPointerLocked = false;
+    this.ignoreNextPointerMove = false;
     this.initInputListeners();
     this.updateCameraFov();
   }
@@ -151,11 +152,21 @@ export class PlayerController {
     });
 
     document.addEventListener('pointerlockchange', () => {
-      this.isPointerLocked = (document.pointerLockElement === this.domElement);
+      const isLocked = document.pointerLockElement === this.domElement;
+      if (isLocked && !this.isPointerLocked) {
+        // Some browsers report the cursor's pre-lock position as the first
+        // relative movement. Ignore that one sample to prevent a lock-on snap.
+        this.ignoreNextPointerMove = true;
+      }
+      this.isPointerLocked = isLocked;
     });
 
     window.addEventListener('mousemove', (e) => {
-      if (!this.isPointerLocked) return;
+      if (document.pointerLockElement !== this.domElement) return;
+      if (this.ignoreNextPointerMove) {
+        this.ignoreNextPointerMove = false;
+        return;
+      }
       this.handleMouseMove(e.movementX, e.movementY);
     });
   }
@@ -200,17 +211,9 @@ export class PlayerController {
     // Valorant uses a factor of 0.07 degrees per count * sens
     const degreesPerCount = this.valorantSens * 0.07;
     const radiansPerCount = (degreesPerCount * Math.PI) / 180;
-    // A single malformed pointer-lock event must not spin the view. Normal
-    // mouse events stay untouched; unusually large events are capped to 30°.
-    const maxTurnPerEvent = THREE.MathUtils.degToRad(30);
-    const clampEventTurn = (movement) => THREE.MathUtils.clamp(
-      movement * radiansPerCount,
-      -maxTurnPerEvent,
-      maxTurnPerEvent
-    );
 
-    const deltaPitch = clampEventTurn(movementY);
-    const deltaYaw = clampEventTurn(movementX);
+    const deltaPitch = movementY * radiansPerCount;
+    const deltaYaw = movementX * radiansPerCount;
 
     // Active Spray Control Compensation:
     // If the player pulls DOWN (movementY > 0 => deltaPitch > 0) while there is active recoil pitch,

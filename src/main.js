@@ -638,7 +638,7 @@ function setGamePaused(paused) {
 
 // Pointer Lock change listener (synchronizes with game pause state)
 document.addEventListener('pointerlockchange', () => {
-  const isLocked = Boolean(document.pointerLockElement);
+  const isLocked = document.pointerLockElement === renderer.domElement;
   playerController.isPointerLocked = isLocked;
 
   const plReportModal = document.getElementById('playlist-report-modal');
