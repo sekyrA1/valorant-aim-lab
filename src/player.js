@@ -215,6 +215,8 @@ export class PlayerController {
     }
 
     this.yaw -= deltaYaw;
+    // Keep yaw numerically stable after repeated full camera turns.
+    this.yaw = THREE.MathUtils.euclideanModulo(this.yaw + Math.PI, Math.PI * 2) - Math.PI;
 
     // Pitch limit: -89° to +89°
     const maxPitch = (89 * Math.PI) / 180;
@@ -233,7 +235,10 @@ export class PlayerController {
   }
 
   updateCameraRotation() {
-    this.euler.x = this.pitch + this.recoilPitch;
+    // Clamp the final angle too: mouse pitch is bounded separately, but weapon
+    // recoil is added afterward and could otherwise push the view past 90°.
+    const maxPitch = (89 * Math.PI) / 180;
+    this.euler.x = THREE.MathUtils.clamp(this.pitch + this.recoilPitch, -maxPitch, maxPitch);
     this.euler.y = this.yaw + this.recoilYaw;
     this.camera.quaternion.setFromEuler(this.euler);
   }
