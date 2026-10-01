@@ -62,6 +62,8 @@ export class PlayerController {
     this.recoilPitch = 0;
     this.recoilYaw = 0;
     this.recoilRecoverySpeed = 15.0;
+    this.pendingMouseYaw = 0;
+    this.pendingMousePitch = 0;
 
     this.isPointerLocked = false;
     this.initInputListeners();
@@ -165,6 +167,10 @@ export class PlayerController {
 
     document.addEventListener('pointerlockchange', () => {
       const isLocked = document.pointerLockElement === this.domElement;
+      if (!isLocked) {
+        this.pendingMouseYaw = 0;
+        this.pendingMousePitch = 0;
+      }
       this.isPointerLocked = isLocked;
     });
 
@@ -215,8 +221,22 @@ export class PlayerController {
     const degreesPerCount = this.valorantSens * 0.07;
     const radiansPerCount = (degreesPerCount * Math.PI) / 180;
 
-    const deltaPitch = movementY * radiansPerCount;
-    const deltaYaw = movementX * radiansPerCount;
+    this.pendingMousePitch += movementY * radiansPerCount;
+    this.pendingMouseYaw += movementX * radiansPerCount;
+  }
+
+  applyPendingMouseInput() {
+    const pendingTurn = Math.hypot(this.pendingMouseYaw, this.pendingMousePitch);
+    if (pendingTurn === 0) return;
+
+    // Keep the full mouse distance, but spread an exceptional one-frame turn
+    // over successive frames instead of snapping the view in a single update.
+    const maxTurnPerFrame = THREE.MathUtils.degToRad(45);
+    const scale = Math.min(1, maxTurnPerFrame / pendingTurn);
+    const deltaYaw = this.pendingMouseYaw * scale;
+    const deltaPitch = this.pendingMousePitch * scale;
+    this.pendingMouseYaw -= deltaYaw;
+    this.pendingMousePitch -= deltaPitch;
 
     // Active Spray Control Compensation:
     // If the player pulls DOWN (movementY > 0 => deltaPitch > 0) while there is active recoil pitch,
@@ -269,6 +289,8 @@ export class PlayerController {
   }
 
   setLookAngles(yawDeg, pitchDeg = 0) {
+    this.pendingMouseYaw = 0;
+    this.pendingMousePitch = 0;
     this.yaw = (yawDeg * Math.PI) / 180;
     this.pitch = (pitchDeg * Math.PI) / 180;
     this.recoilPitch = 0;
@@ -281,6 +303,8 @@ export class PlayerController {
   }
 
   update(dt, weaponManager) {
+    this.applyPendingMouseInput();
+
     // 1. Determine target speed
     this.isCrouching = this.keys.crouch;
     this.isWalking = this.keys.walk;
