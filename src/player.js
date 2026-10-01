@@ -194,13 +194,23 @@ export class PlayerController {
   }
 
   handleMouseMove(movementX, movementY) {
+    if (!Number.isFinite(movementX) || !Number.isFinite(movementY)) return;
+
     // Authentic Valorant sensitivity conversion
     // Valorant uses a factor of 0.07 degrees per count * sens
     const degreesPerCount = this.valorantSens * 0.07;
     const radiansPerCount = (degreesPerCount * Math.PI) / 180;
+    // A single malformed pointer-lock event must not spin the view. Normal
+    // mouse events stay untouched; unusually large events are capped to 30°.
+    const maxTurnPerEvent = THREE.MathUtils.degToRad(30);
+    const clampEventTurn = (movement) => THREE.MathUtils.clamp(
+      movement * radiansPerCount,
+      -maxTurnPerEvent,
+      maxTurnPerEvent
+    );
 
-    const deltaPitch = movementY * radiansPerCount;
-    const deltaYaw = movementX * radiansPerCount;
+    const deltaPitch = clampEventTurn(movementY);
+    const deltaYaw = clampEventTurn(movementX);
 
     // Active Spray Control Compensation:
     // If the player pulls DOWN (movementY > 0 => deltaPitch > 0) while there is active recoil pitch,
@@ -215,8 +225,6 @@ export class PlayerController {
     }
 
     this.yaw -= deltaYaw;
-    // Keep yaw numerically stable after repeated full camera turns.
-    this.yaw = THREE.MathUtils.euclideanModulo(this.yaw + Math.PI, Math.PI * 2) - Math.PI;
 
     // Pitch limit: -89° to +89°
     const maxPitch = (89 * Math.PI) / 180;
