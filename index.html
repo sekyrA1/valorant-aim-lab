@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VALORANT AIM LAB - 3D Web FPS & Retake Simulator</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <!-- 3D Three.js WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Dynamic In-Game Crosshair Layer -->
+    <canvas id="crosshair-canvas" width="100" height="100"></canvas>
+
+    <!-- Operator Sniper Scope Fullscreen Overlay -->
+    <div id="sniper-scope"></div>
+
+    <!-- Directional Damage Vignette -->
+    <div id="damage-vignette"></div>
+
+    <!-- Kill Banner Pop-up -->
+    <div id="kill-banner">
+      <svg class="kill-skull" viewBox="0 0 24 24">
+        <path d="M12 2C6.48 2 2 6.48 2 12c0 2.85 1.2 5.41 3.12 7.24.23.22.54.34.86.34h1.04c.55 0 1-.45 1-1v-1c0-.55.45-1 1-1h1c.55 0 1 .45 1 1v1c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-1c0-.55.45-1 1-1h1c.55 0 1 .45 1 1v1c0 .55.45 1 1 1h1.04c.32 0 .63-.12.86-.34C20.8 17.41 22 14.85 22 12c0-5.52-4.48-10-10-10zm-3 11a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+      </svg>
+      <div class="kill-text" id="kill-title">ELIMINAÇÃO</div>
+      <div class="kill-subtext" id="kill-subtitle">HEADSHOT +1500 PTS</div>
+    </div>
+
+    <!-- IN-GAME HUD -->
+    <div id="hud">
+      <!-- Top Match Bar -->
+      <div class="top-match-bar">
+        <div class="mode-title-badge" id="hud-mode-title">RETAKE - SITE A</div>
+        <div class="match-timer-box">
+          <span class="timer-val" id="hud-timer">45</span>
+        </div>
+        <div class="match-score-badge" id="hud-score">SCORE: 0</div>
+      </div>
+
+      <!-- Playlist Tracking Pill & Stage Progress in HUD -->
+      <div id="playlist-hud-container" style="display: none;">
+        <div class="playlist-hud-pill">
+          <span class="pl-badge" id="pl-hud-badge">VOLTAIC BENCHMARK</span>
+          <span class="pl-stage-title" id="pl-hud-stage-title">ETAPA 1/4: MICRO-FLICKS</span>
+        </div>
+        <div class="playlist-progress-bar">
+          <div class="playlist-progress-fill" id="pl-hud-progress-fill" style="width: 25%;"></div>
+        </div>
+      </div>
+
+      <!-- Spike Defusal Interactive Widget -->
+      <div id="defuse-overlay">
+        <div class="defuse-prompt-text" id="defuse-text">SEGURE [F] OU [4] PARA DEFUSAR A SPIKE</div>
+        <div class="defuse-bar-outer">
+          <div class="defuse-halfway-marker" title="Checkpoint 3.5s"></div>
+          <div class="defuse-bar-fill" id="defuse-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Player Health & Shield (Bottom Left) -->
+      <div class="player-status-container">
+        <div class="status-stat-row">
+          <span class="stat-icon">🛡</span>
+          <span class="stat-number" id="hud-shield">50</span>
+          <div class="stat-bar-outer">
+            <div class="stat-bar-fill shield-fill" id="hud-shield-bar" style="width: 100%;"></div>
+          </div>
+        </div>
+        <div class="status-stat-row">
+          <span class="stat-icon">+</span>
+          <span class="stat-number" id="hud-health">100</span>
+          <div class="stat-bar-outer">
+            <div class="stat-bar-fill health-fill" id="hud-health-bar" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weapon & Ammo Display (Bottom Right) -->
+      <div class="weapon-status-container">
+        <div class="weapon-name-display" id="hud-weapon-name">VANDAL</div>
+        <div class="ammo-display">
+          <span class="ammo-current" id="hud-ammo">25</span>
+          <span class="ammo-slash">/</span>
+          <span class="ammo-reserve" id="hud-reserve">75</span>
+        </div>
+        <div class="reload-prompt" id="hud-reload-prompt">[R] RECARREGAR</div>
+      </div>
+
+      <!-- Hold de Pixel Reaction Time Prompt Banner -->
+      <div id="hold-pixel-prompt" class="hold-prompt">SEGURE O PIXEL... PREPARE-SE</div>
+
+      <!-- Stage Transition Interstitial Overlay -->
+      <div id="stage-transition-overlay" class="stage-transition-banner" style="display: none;">
+        <div class="stage-trans-box">
+          <span class="stage-trans-tag" id="stage-trans-status">★ ETAPA CONCLUÍDA!</span>
+          <h2 class="stage-trans-score" id="stage-trans-score">+24,500 PTS</h2>
+          <div class="stage-trans-stats" id="stage-trans-stats">Precisão: 94% • 18 Headshots</div>
+          <div class="stage-trans-next" id="stage-trans-next">PRÓXIMA ETAPA EM 2s: SPEED FLICKING...</div>
+        </div>
+      </div>
+
+      <!-- Shooting Error Graph Widget (Valorant Style) -->
+      <div id="shooting-error-widget">
+        <canvas id="shooting-error-canvas" width="220" height="74"></canvas>
+        <div class="graph-legend">
+          <span class="legend-item"><span class="dot-move"></span> Movimento</span>
+          <span class="legend-item"><span class="dot-fire"></span> Recuo / Spray</span>
+        </div>
+      </div>
+
+      <!-- Controls Hint (Bottom Center) -->
+      <div class="hud-controls-hint">
+        <span>[WASD] Mover</span> • <span>[SHIFT] Andar</span> • <span>[CTRL] Agachar</span> • <span>[ESPAÇO] Pular</span> • <span>[1,2,3] Armas/Faca</span> • <span>[R] Recarregar</span> • <span>[F / 4] Defusar</span> • <span>[ESC] Menu</span>
+      </div>
+    </div>
+
+    <!-- MAIN LOBBY / MENU SCREEN -->
+    <div id="lobby-screen">
+      <div class="lobby-header">
+        <div class="brand-container">
+          <div class="val-logo-mark"></div>
+          <div class="brand-text">
+            <h1>VALORANT AIM LAB</h1>
+            <p>3D FPS RETAKE & AIM TRAINER</p>
+          </div>
+        </div>
+        <div class="lobby-nav-actions">
+          <button class="btn-secondary highlight-cyan" id="btn-open-performance">📊 DESEMPENHO & RANK</button>
+          <button class="btn-secondary highlight-gold" id="btn-open-settings">⚙️ CONFIGURAÇÕES & MIRA</button>
+          <button class="btn-secondary" id="btn-toggle-sound">SOM: LIGADO</button>
+        </div>
+      </div>
+
+      <!-- Lobby Navigation Tabs (Modos Individuais vs Rotinas Voltaic/Yprac vs Desempenho) -->
+      <div class="difficulty-selector" aria-label="Dificuldade das tarefas">
+        <span>DIFFICULDADE</span>
+        <button type="button" class="difficulty-btn" data-difficulty="easy">FÁCIL</button>
+        <button type="button" class="difficulty-btn active" data-difficulty="normal">NORMAL</button>
+        <button type="button" class="difficulty-btn" data-difficulty="hard">DIFÍCIL</button>
+        <small>Afeta todos os modos e playlists.</small>
+      </div>
+      <div class="lobby-tabs-row">
+        <button class="lobby-tab active" id="tab-modes-view" type="button">
+          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (14)
+        </button>
+        <button class="lobby-tab" id="tab-playlists-view" type="button">
+          <span style="color: var(--val-gold);">⚡</span> ROTINAS & PLAYLISTS (5 SEQUÊNCIAS)
+        </button>
+        <button class="lobby-tab" id="tab-performance-view" type="button">
+          <span style="color: #00ff88;">📊</span> MEU DESEMPENHO & VOLTAIC RANK
+        </button>
+      </div>
+
+      <!-- 1. Mode Selection Grid (Individual Modes) -->
+      <div id="modes-view-container">
+        <div class="modes-grid-container">
+          <div class="section-label">SELECIONE O MODO DE TREINO INDIVIDUAL:</div>
+          <div class="modes-cards">
+            <!-- Mode 1: Retake -->
+            <div class="mode-card selected" data-mode="retake" id="card-retake">
+            <div>
+              <span class="mode-badge-tag">SIMULAÇÃO REAL</span>
+              <h2 class="mode-title">RETAKE SITE A</h2>
+              <p class="mode-desc">Defuse a Spike plantada na Ascent A! Elimine os bots defensores com pré-mira, counter-strafe e jiggle peek.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 45s • 5 Bots</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">★ TÁTICO</span>
+            </div>
+          </div>
+
+          <!-- Mode 2: Voltaic 1w6ts Static Clicking -->
+          <div class="mode-card" data-mode="voltaic_static" id="card-voltaic-static">
+            <div>
+              <span class="mode-badge-tag" style="color: var(--val-gold); border-color: var(--val-gold);">⚡ VOLTAIC OFICIAL</span>
+              <h2 class="mode-title">1w6ts STATIC</h2>
+              <p class="mode-desc">6 alvos estáticos simultâneos na parede. Treine cadência rítmica, micro-ajuste e combo streak multiplicador até 2.5x!</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Multiplicador Combo</span>
+              <span style="color: var(--val-gold); font-weight: 700;">🎯 PRECISÃO</span>
+            </div>
+          </div>
+
+          <!-- Mode 3: Voltaic Pasu Dynamic Bouncing -->
+          <div class="mode-card" data-mode="voltaic_pasu" id="card-voltaic-pasu">
+            <div>
+              <span class="mode-badge-tag" style="color: #ff0055; border-color: #ff0055;">⚡ VOLTAIC OFICIAL</span>
+              <h2 class="mode-title">PASU DYNAMIC</h2>
+              <p class="mode-desc">3 a 5 orbes móveis, distribuídos sem sobreposição e com mudanças de velocidade. Treine antecipação e timing de clique.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Alvos Móveis</span>
+              <span style="color: #ff0055; font-weight: 700;">⚡ DINÂMICO</span>
+            </div>
+          </div>
+
+          <!-- Mode 4: Voltaic Smoothbot 3D Tracking -->
+          <div class="mode-card" data-mode="voltaic_smooth" id="card-voltaic-smooth">
+            <div>
+              <span class="mode-badge-tag" style="color: #10b981; border-color: #10b981;">⚡ VOLTAIC BENCHMARK</span>
+              <h2 class="mode-title">SMOOTHBOT 3D</h2>
+              <p class="mode-desc">Rastreamento 3D orbital com orbe cinemático esmeralda. Calcule sua taxa de suavidade percentual e elimine tremores no mousepad!</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Live Smoothness %</span>
+              <span style="color: #10b981; font-weight: 700;">🟢 SMOOTHBOT</span>
+            </div>
+          </div>
+
+          <!-- Mode 5: Voltaic PatTargetSwitch -->
+          <div class="mode-card" data-mode="voltaic_switch" id="card-voltaic-switch">
+            <div>
+              <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ VOLTAIC SPEED</span>
+              <h2 class="mode-title">TARGET SWITCH</h2>
+              <p class="mode-desc">3 a 5 alvos em faixas separadas. Elimine um e troque imediatamente para o próximo para ganhar bônus de transição.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Bônus Rapid Switch</span>
+              <span style="color: #a855f7; font-weight: 700;">🟣 SWITCH</span>
+            </div>
+          </div>
+
+          <!-- Mode 6: Yprac Pre-Aim Ascent A -->
+          <div class="mode-card" data-mode="yprac_preaim" id="card-yprac-preaim">
+            <div>
+              <span class="mode-badge-tag" style="color: #ff9900; border-color: #ff9900;">🎯 ESTILO CS YPRAC</span>
+              <h2 class="mode-title">YPRAC PRE-AIM</h2>
+              <p class="mode-desc">Percurso de 6 checkpoints isolando cada ângulo da Ascent A: A-Main, Wine, Gerador, Default, Sacada de Heaven e Hell.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">6 Ângulos • Medição de ms</span>
+              <span style="color: #ff9900; font-weight: 700;">📐 PRE-AIM</span>
+            </div>
+          </div>
+
+          <!-- Mode 7: Yprac Peek & Jiggle Duel -->
+          <div class="mode-card" data-mode="yprac_peek_duel" id="card-yprac-peek-duel">
+            <div>
+              <span class="mode-badge-tag" style="color: #00f0ff; border-color: #00f0ff;">🎯 CS/VAL TACTICAL</span>
+              <h2 class="mode-title">PEEK &amp; JIGGLE DUEL</h2>
+              <p class="mode-desc">Duelos com detecção de Deadzone! Se atirar em movimento (&gt;1.4 m/s), haverá erro de dispersão. Faça counter-strafe seco para 1-taps Radiant!</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">5 Duelos • Detecção Deadzone</span>
+              <span style="color: #00f0ff; font-weight: 700;">⚡ DEADZONE</span>
+            </div>
+          </div>
+
+          <!-- Mode 8: Yprac Spray Transfer -->
+          <div class="mode-card" data-mode="yprac_spray" id="card-yprac-spray">
+            <div>
+              <span class="mode-badge-tag" style="color: #eab308; border-color: #eab308;">🔥 CONTROLE DE RECUO</span>
+              <h2 class="mode-title">SPRAY TRANSFER</h2>
+              <p class="mode-desc">Transfira a rajada de spray contínuo de Vandal/Phantom entre 2 a 3 bots em posições táticas da Ascent A mantendo o padrão de recuo!</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">5 Séries • Recoil Control</span>
+              <span style="color: #eab308; font-weight: 700;">💥 SPRAY</span>
+            </div>
+          </div>
+
+          <!-- Mode 9: Yprac Site Defense -->
+          <div class="mode-card" data-mode="yprac_defense" id="card-yprac-defense">
+            <div>
+              <span class="mode-badge-tag" style="color: #ff4655; border-color: #ff4655;">🛡 DEFESA DE SITE</span>
+              <h2 class="mode-title">YPRAC DEFENSE</h2>
+              <p class="mode-desc">Ancorado no Bomb A, enfrente 3 ondas coordenadas de invasores empurrando por Main, Wine e Heaven. Sobreviva ao rush!</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">3 Ondas • 12 Invasores</span>
+              <span style="color: #ff4655; font-weight: 700;">⚔ DEFESA</span>
+            </div>
+          </div>
+
+          <!-- Mode 10: Gridshot -->
+          <div class="mode-card" data-mode="gridshot" id="card-gridshot">
+            <div>
+              <span class="mode-badge-tag">AIMLAB CLÁSSICO</span>
+              <h2 class="mode-title">GRIDSHOT</h2>
+              <p class="mode-desc">3 alvos ativos simultâneos. Treine velocidade de reação, reflexos de flick e memória muscular máxima.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Alvos Orbe</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">⚡ FLICKS</span>
+            </div>
+          </div>
+
+          <!-- Mode 7: Microshot -->
+          <div class="mode-card" data-mode="microshot" id="card-microshot">
+            <div>
+              <span class="mode-badge-tag">KOVAAKS / PRECISÃO</span>
+              <h2 class="mode-title">MICROSHOT</h2>
+              <p class="mode-desc">Alvos ultra-pequenos para calibrar micro-ajustes finos de mira e precisão cirúrgica de primeiro tiro.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Micro-Flicks</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">🎯 1-TAP</span>
+            </div>
+          </div>
+
+          <!-- Mode 8: Tracking -->
+          <div class="mode-card" data-mode="tracking" id="card-tracking">
+            <div>
+              <span class="mode-badge-tag">RASTREAMENTO</span>
+              <h2 class="mode-title">STRAFE TRACK</h2>
+              <p class="mode-desc">Alvo em constante aceleração horizontal. Mantenha a mira fixa enquanto o alvo se desloca e desvia.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Alvo Móvel</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">🔄 TRACK</span>
+            </div>
+          </div>
+
+          <!-- Mode 9: The Range -->
+          <div class="mode-card" data-mode="range" id="card-range">
+            <div>
+              <span class="mode-badge-tag">ESTANDE DE TIRO</span>
+              <h2 class="mode-title">THE RANGE</h2>
+              <p class="mode-desc">Treino livre sem limite de tempo com bots e alvos para você calibrar sua sensibilidade e aquecer.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo Livre • Treino</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">♾ INFINITO</span>
+            </div>
+          </div>
+
+          <!-- Mode 10: Hold de Pixel -->
+          <div class="mode-card" data-mode="hold_pixel" id="card-hold-pixel">
+            <div>
+              <span class="mode-badge-tag">TREINO DE REAÇÃO</span>
+              <h2 class="mode-title">HOLD DE PIXEL</h2>
+              <p class="mode-desc">Segure pixels e ângulos reais contra bots que abrem de wide swing ou jiggle peek. Meça sua velocidade de reação milissegundo a milissegundo!</p>
+              <div class="scenario-selector-pills">
+                <button class="pill-scenario active" data-scenario="ascent_main" type="button">A-Main</button>
+                <button class="pill-scenario" data-scenario="ascent_heaven" type="button">Heaven</button>
+                <button class="pill-scenario" data-scenario="tight_pixel" type="button">Crack 1mm</button>
+                <button class="pill-scenario" data-scenario="unpredictable" type="button">Aleatório</button>
+              </div>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Tempo de Reação</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">⚡ REAÇÃO (ms)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+      <!-- 2. Playlist Selection Grid (Voltaic Benchmarks & CS Yprac Routines) -->
+      <div id="playlists-view-container" style="display: none;">
+        <div class="modes-grid-container">
+          <div class="section-label">SELECIONE UMA ROTINA COMPLETA DE TREINO (5 SEQUÊNCIAS COM DESEMPENHO VOLTAIC & YPRAC):</div>
+          <div class="playlists-cards">
+            <!-- Playlist 1: Voltaic Benchmark -->
+            <div class="playlist-card selected" data-playlist="voltaic_benchmark" id="pl-card-voltaic">
+              <div class="pl-header">
+                <span class="mode-badge-tag" style="color: var(--val-cyan); border-color: var(--val-cyan);">⚡ BENCHMARK VOLTAIC</span>
+                <span class="pl-stages-count">5 ETAPAS • OFICIAL</span>
+              </div>
+              <h2 class="mode-title">VOLTAIC BENCHMARK OFICIAL</h2>
+              <p class="mode-desc">A rotina de mira definitiva: 1w6ts Static Clicking, Pasu Dynamic Bouncing, Smoothbot 3D Harmonic Tracking, Pat Target Switch e Hold de Pixel 1mm.</p>
+              <div class="pl-stages-row">
+                <span class="pl-stage-chip"><span class="chip-num">1</span> 1w6ts Static (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">2</span> Pasu Bounce (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Smoothbot 3D (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">4</span> Target Switch (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">5</span> Hold 1mm (30s)</span>
+              </div>
+              <div class="mode-card-bottom">
+                <span class="mode-stats-summary" id="pl-record-voltaic">Recorde: —</span>
+                <button class="btn-play-sm btn-start-playlist-card" data-playlist="voltaic_benchmark">INICIAR ROTINA</button>
+              </div>
+            </div>
+
+            <!-- Playlist 2: Yprac Ascent -->
+            <div class="playlist-card" data-playlist="yprac_ascent" id="pl-card-yprac">
+              <div class="pl-header">
+                <span class="mode-badge-tag" style="color: #ff9900; border-color: #ff9900;">🎯 ESTILO CS YPRAC</span>
+                <span class="pl-stages-count">5 ETAPAS • TÁTICO</span>
+              </div>
+              <h2 class="mode-title">YPRAC ASCENT: TACTICAL MASTERY</h2>
+              <p class="mode-desc">Inspirado nos mapas clássicos Yprac do CS: percurso de 6 checkpoints de pre-aim, duelo com deadzone stop, controle de spray contínuo, defesa de site e clutch 1v5.</p>
+              <div class="pl-stages-row">
+                <span class="pl-stage-chip"><span class="chip-num">1</span> Pre-Aim 6 Ângulos (60s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">2</span> Peek & Deadzone (60s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Spray Transfer (60s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">4</span> Defesa de Site (60s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">5</span> Retake Clutch (45s)</span>
+              </div>
+              <div class="mode-card-bottom">
+                <span class="mode-stats-summary" id="pl-record-yprac">Recorde: —</span>
+                <button class="btn-play-sm btn-start-playlist-card" data-playlist="yprac_ascent">INICIAR ROTINA</button>
+              </div>
+            </div>
+
+            <!-- Playlist 3: Pro Warmup -->
+            <div class="playlist-card" data-playlist="pro_warmup" id="pl-card-warmup">
+              <div class="pl-header">
+                <span class="mode-badge-tag" style="color: var(--val-red); border-color: var(--val-red);">🔥 AQUECIMENTO PRO</span>
+                <span class="pl-stages-count">4 ETAPAS • 2.5 MIN</span>
+              </div>
+              <h2 class="mode-title">AQUECIMENTO PRÉ-RANQUEADA</h2>
+              <p class="mode-desc">Ativação neuro-motora antes de buscar partida: calibração livre no Range, precisão Voltaic 1w6ts, transferência rápida de spray e retake decisivo sob pressão da Spike.</p>
+              <div class="pl-stages-row">
+                <span class="pl-stage-chip"><span class="chip-num">1</span> The Range (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">2</span> 1w6ts Static (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Spray Transfer (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">4</span> Retake Clutch (45s)</span>
+              </div>
+              <div class="mode-card-bottom">
+                <span class="mode-stats-summary" id="pl-record-warmup">Recorde: —</span>
+                <button class="btn-play-sm btn-start-playlist-card" data-playlist="pro_warmup">INICIAR ROTINA</button>
+              </div>
+            </div>
+
+            <!-- Playlist 4: Micro-Flick Routine -->
+            <div class="playlist-card" data-playlist="micro_flick_routine" id="pl-card-microflick">
+              <div class="pl-header">
+                <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ FLICK & DEADZONE</span>
+                <span class="pl-stages-count">4 ETAPAS • CIRÚRGICO</span>
+              </div>
+              <h2 class="mode-title">MICRO-FLICK & COUNTER-STRAFE</h2>
+              <p class="mode-desc">Perfeito para afiar a precisão em alvos diminutos e a sincronia perfeita de counter-strafe (deadzone) antes de disparar o 1-tap com Vandal ou Sheriff.</p>
+              <div class="pl-stages-row">
+                <span class="pl-stage-chip"><span class="chip-num">1</span> Microshot Alvos (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">2</span> Static 1w6ts (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Hold de Pixel (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">4</span> Deadzone Stop (45s)</span>
+              </div>
+              <div class="mode-card-bottom">
+                <span class="mode-stats-summary" id="pl-record-microflick">Recorde: —</span>
+                <button class="btn-play-sm btn-start-playlist-card" data-playlist="micro_flick_routine">INICIAR ROTINA</button>
+              </div>
+            </div>
+
+            <!-- Playlist 5: Spray Defense Routine -->
+            <div class="playlist-card" data-playlist="spray_defense_routine" id="pl-card-spraydefense">
+              <div class="pl-header">
+                <span class="mode-badge-tag" style="color: #ef4444; border-color: #ef4444;">💥 RECUO & DEFESA</span>
+                <span class="pl-stages-count">3 ETAPAS • INTENSO</span>
+              </div>
+              <h2 class="mode-title">SPRAY CONTROL & SITE HOLD</h2>
+              <p class="mode-desc">Mecânicas avançadas de recoil: 5 séries de spray transfer sem desarmar o gatilho, retenção de 12 bots invasores no bomb A e clutch retake final.</p>
+              <div class="pl-stages-row">
+                <span class="pl-stage-chip"><span class="chip-num">1</span> Spray Transfer (45s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">2</span> Defesa 3 Ondas (60s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Retake Clutch (45s)</span>
+              </div>
+              <div class="mode-card-bottom">
+                <span class="mode-stats-summary" id="pl-record-spraydefense">Recorde: —</span>
+                <button class="btn-play-sm btn-start-playlist-card" data-playlist="spray_defense_routine">INICIAR ROTINA</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer & Weapon Selector & Play Button -->
+      <div class="lobby-footer">
+        <div class="weapon-select-row">
+          <span style="font-family: var(--font-hud); font-weight: 700; color: var(--val-gray); letter-spacing: 1px;">ARMA:</span>
+          <button class="weapon-btn active" data-weapon="vandal">VANDAL</button>
+          <button class="weapon-btn" data-weapon="phantom">PHANTOM</button>
+          <button class="weapon-btn" data-weapon="guardian">GUARDIAN</button>
+          <button class="weapon-btn" data-weapon="spectre">SPECTRE</button>
+          <button class="weapon-btn" data-weapon="classic">CLASSIC</button>
+          <button class="weapon-btn" data-weapon="sheriff">SHERIFF</button>
+          <button class="weapon-btn" data-weapon="operator">OPERATOR</button>
+          <button class="weapon-btn" data-weapon="knife">FACA</button>
+        </div>
+
+        <div class="lobby-play-actions">
+          <button class="btn-config-hero" id="btn-open-settings-hero" type="button" title="Ajuste Sensibilidade, DPI, FOV, Mira e Gráficos">
+            <span class="config-hero-icon">⚙️</span>
+            <div class="config-hero-text">
+              <span class="config-hero-title">CONFIGURAÇÕES</span>
+              <span class="config-hero-subtitle">SENS • DPI • MIRA • VFX</span>
+            </div>
+          </button>
+          <button class="btn-play" id="btn-start-game">JOGAR TREINO</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS / CONFIGURAÇÕES MODAL -->
+    <div class="modal-backdrop" id="settings-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+              <span class="mode-badge-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--val-cyan); border-color: var(--val-cyan);">CALIBRAÇÃO INICIAL</span>
+              <span style="font-family: var(--font-hud); font-size: 0.8rem; color: var(--val-gray); letter-spacing: 1px;">AJUSTE SUAS CONFIGURAÇÕES ANTES DE JOGAR</span>
+            </div>
+            <h2>CONFIGURAÇÕES & MIRA DO VALORANT</h2>
+          </div>
+          <button class="close-modal-btn" id="btn-close-settings" title="Fechar">✕</button>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Coluna 1: Sensibilidade & Mouse & FOV -->
+          <div class="setting-group">
+            <h3 style="font-family: var(--font-hud); color: var(--val-cyan); letter-spacing: 2px;">CALIBRAÇÃO DE MOUSE & VALORANT</h3>
+
+            <div class="setting-row">
+              <span class="setting-label">Sensibilidade no Valorant</span>
+              <div class="setting-input-wrapper">
+                <input type="range" class="setting-slider" id="input-sens-slider" min="0.05" max="2.0" step="0.01" value="0.35" style="width: 140px;" />
+                <input type="number" class="setting-number-box" id="input-sens-num" min="0.01" max="5.0" step="0.005" value="0.35" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">DPI do Mouse</span>
+              <div class="setting-input-wrapper">
+                <input type="number" class="setting-number-box" id="input-dpi-num" min="400" max="3200" step="100" value="800" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">eDPI Calculado (Sens × DPI)</span>
+              <span id="label-edpi" style="font-family: var(--font-display); font-size: 1.8rem; color: var(--val-gold); font-weight: 700;">280 eDPI</span>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Campo de Visão (FOV Valorant 103°)</span>
+              <div class="setting-input-wrapper">
+                <input type="range" class="setting-slider" id="input-fov-slider" min="80" max="115" step="1" value="103" style="width: 140px;" />
+                <span id="label-fov-val" style="font-family: var(--font-hud); font-weight: 700; width: 45px; text-align: right;">103°</span>
+              </div>
+            </div>
+
+            <h3 style="font-family: var(--font-hud); color: var(--val-cyan); letter-spacing: 2px; margin-top: 16px;">GAMEPLAY & GRÁFICOS</h3>
+            <div class="setting-row">
+              <span class="setting-label">Exibir Gráfico de Erro de Disparo</span>
+              <input type="checkbox" id="chk-show-graph" checked style="width: 20px; height: 20px; accent-color: var(--val-red);" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Auto-Resetar Munição ao Eliminar</span>
+              <input type="checkbox" id="chk-auto-refill-ammo" checked style="width: 20px; height: 20px; accent-color: var(--val-red);" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Pós-Processador Bloom (Brilho Tático)</span>
+              <input type="checkbox" id="chk-post-bloom" checked style="width: 20px; height: 20px; accent-color: var(--val-cyan);" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Efeitos Visuais VFX (Marcas de Tiro / Faíscas)</span>
+              <input type="checkbox" id="chk-vfx-enabled" checked style="width: 20px; height: 20px; accent-color: var(--val-cyan);" />
+            </div>
+
+            <h3 style="font-family: var(--font-hud); color: var(--val-cyan); letter-spacing: 2px; margin-top: 16px;">ÁUDIO</h3>
+            <div class="setting-row">
+              <span class="setting-label">Volume Geral</span>
+              <input type="range" class="setting-slider" id="input-volume-master" min="0" max="1" step="0.05" value="0.8" style="width: 180px;" />
+            </div>
+          </div>
+
+          <!-- Coluna 2: Personalizador de Mira (Crosshair) -->
+          <div class="setting-group">
+            <h3 style="font-family: var(--font-hud); color: var(--val-cyan); letter-spacing: 2px;">PERSONALIZADOR DE MIRA</h3>
+
+            <!-- Live Crosshair Preview -->
+            <div class="crosshair-preview-box">
+              <canvas id="crosshair-preview-canvas" width="80" height="80"></canvas>
+            </div>
+
+            <!-- Cor da Mira -->
+            <div class="setting-row">
+              <span class="setting-label">Cor da Mira</span>
+              <div class="color-picker-row">
+                <div class="color-dot active" data-color="#00ffff" style="background: #00ffff;" title="Ciano"></div>
+                <div class="color-dot" data-color="#00ff00" style="background: #00ff00;" title="Verde"></div>
+                <div class="color-dot" data-color="#ffff00" style="background: #ffff00;" title="Amarelo"></div>
+                <div class="color-dot" data-color="#ff4655" style="background: #ff4655;" title="Vermelho Valorant"></div>
+                <div class="color-dot" data-color="#ffffff" style="background: #ffffff;" title="Branco"></div>
+                <div class="color-dot" data-color="#ff00ff" style="background: #ff00ff;" title="Rosa"></div>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Contornos (Outlines)</span>
+              <input type="checkbox" id="chk-outlines" checked style="width: 20px; height: 20px; accent-color: var(--val-red);" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Ponto Central (Center Dot)</span>
+              <input type="checkbox" id="chk-center-dot" style="width: 20px; height: 20px; accent-color: var(--val-red);" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Comprimento Linhas Internas</span>
+              <input type="range" class="setting-slider" id="input-line-length" min="1" max="15" step="1" value="6" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Espessura Linhas Internas</span>
+              <input type="range" class="setting-slider" id="input-line-thick" min="1" max="6" step="1" value="2" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Espaçamento / Offset</span>
+              <input type="range" class="setting-slider" id="input-line-offset" min="0" max="12" step="1" value="3" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Erro de Movimento Dinâmico</span>
+              <input type="checkbox" id="chk-movement-error" checked style="width: 20px; height: 20px; accent-color: var(--val-red);" />
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">Erro de Disparo / Recuo Dinâmico</span>
+              <input type="checkbox" id="chk-firing-error" checked style="width: 20px; height: 20px; accent-color: var(--val-red);" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer with auto-save indicator and confirm button -->
+        <div class="modal-footer">
+          <div class="save-status-indicator">
+            <span class="save-dot"></span>
+            <span id="save-status-text">CONFIGURAÇÕES SALVAS (LOCALSTORAGE)</span>
+          </div>
+          <button class="btn-play" id="btn-save-confirm-settings" style="padding: 12px 36px; font-size: 1.15rem; letter-spacing: 1px;">CONFIRMAR & IR AO LOBBY</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMBAT REPORT (END OF SESSION STATS) -->
+    <div class="modal-backdrop" id="report-modal">
+      <div class="modal-content report-content" style="position: relative;">
+        <button class="close-modal-btn" id="btn-close-report" title="Voltar ao Menu Principal" style="position: absolute; top: 16px; right: 20px;">✕</button>
+        <h1 class="report-banner victory" id="report-title">VITÓRIA</h1>
+        <div class="report-submessage" id="report-submessage">SPIKE DEFUSED • CLUTCH 1v5</div>
+
+        <div class="report-stats-grid">
+          <div class="report-stat-card">
+            <div class="stat-card-title">PONTUAÇÃO</div>
+            <div class="stat-card-value" id="report-score" style="color: var(--val-gold);">45,200</div>
+          </div>
+
+          <div class="report-stat-card">
+            <div class="stat-card-title">PRECISÃO</div>
+            <div class="stat-card-value" id="report-acc" style="color: var(--val-cyan);">88%</div>
+          </div>
+
+          <div class="report-stat-card">
+            <div class="stat-card-title">HEADSHOTS</div>
+            <div class="stat-card-value" id="report-hs" style="color: #fff;">14</div>
+          </div>
+
+          <div class="report-stat-card">
+            <div class="stat-card-title">TIROS ACERTADOS</div>
+            <div class="stat-card-value" id="report-hits">42</div>
+          </div>
+
+          <div class="report-stat-card">
+            <div class="stat-card-title">TIROS ERRADOS</div>
+            <div class="stat-card-value" id="report-misses">6</div>
+          </div>
+
+          <div class="report-stat-card">
+            <div class="stat-card-title">ALVOS / SEG (KPS)</div>
+            <div class="stat-card-value" id="report-kps" style="color: var(--val-cyan);">2.15</div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; gap: 20px;">
+          <button class="btn-play" id="btn-report-again" style="font-size: 1.6rem; padding: 12px 40px;">JOGAR NOVAMENTE</button>
+          <button class="btn-secondary" id="btn-report-lobby" style="font-size: 1.1rem; padding: 12px 32px;">MENU PRINCIPAL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERFORMANCE & VOLTAIC RANK HUB MODAL -->
+    <div class="modal-backdrop" id="performance-modal">
+      <div class="modal-content performance-content">
+        <div class="modal-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+              <span class="mode-badge-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--val-cyan); border-color: var(--val-cyan);">VOLTAIC AIM LAB BENCHMARKS</span>
+              <span style="font-family: var(--font-hud); font-size: 0.8rem; color: var(--val-gray); letter-spacing: 1px;">SISTEMA DE PROGRESSÃO & RANKING</span>
+            </div>
+            <h2>CENTRAL DE DESEMPENHO DO JOGADOR</h2>
+          </div>
+          <button class="close-modal-btn" id="btn-close-performance" title="Fechar">✕</button>
+        </div>
+
+        <!-- Voltaic Rank Hero Card -->
+        <div class="voltaic-rank-card" id="voltaic-rank-card">
+          <div class="voltaic-badge-container">
+            <span class="voltaic-badge-icon" id="perf-rank-badge">💎</span>
+          </div>
+          <div class="voltaic-rank-details">
+            <div class="voltaic-rank-tier" id="perf-rank-title">RANK VOLTAIC: DIAMANTE II</div>
+            <div class="voltaic-rank-subtitle">AVALIAÇÃO OFICIAL DE MIRA VOLTAIC X VALORANT</div>
+            <div class="voltaic-progress-wrap">
+              <div class="voltaic-progress-bar">
+                <div class="voltaic-progress-fill" id="perf-rank-progress-fill" style="width: 65%;"></div>
+              </div>
+              <div class="voltaic-progress-labels">
+                <span id="perf-rank-current-pts">7,450 PTS</span>
+                <span id="perf-rank-next-tier">PRÓXIMO: ASCENDENTE (9,000 PTS)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Career Statistics Grid -->
+        <div class="section-label" style="margin: 20px 0 12px 0;">ESTATÍSTICAS GERAIS DE CARREIRA:</div>
+        <div class="perf-stats-grid">
+          <div class="perf-stat-card">
+            <div class="perf-stat-label">SESSÕES JOGADAS</div>
+            <div class="perf-stat-val" id="perf-total-sessions" style="color: #fff;">0</div>
+          </div>
+          <div class="perf-stat-card">
+            <div class="perf-stat-label">PRECISÃO MÉDIA</div>
+            <div class="perf-stat-val" id="perf-overall-acc" style="color: var(--val-cyan);">0%</div>
+          </div>
+          <div class="perf-stat-card">
+            <div class="perf-stat-label">TAXA DE HEADSHOT</div>
+            <div class="perf-stat-val" id="perf-hs-rate" style="color: var(--val-gold);">0%</div>
+          </div>
+          <div class="perf-stat-card">
+            <div class="perf-stat-label">REAÇÃO RECORD (HOLD)</div>
+            <div class="perf-stat-val" id="perf-best-reaction" style="color: #34d399;">—</div>
+          </div>
+          <div class="perf-stat-card">
+            <div class="perf-stat-label">RETAKES CONCLUÍDOS</div>
+            <div class="perf-stat-val" id="perf-retakes-won" style="color: var(--val-red);">0</div>
+          </div>
+          <div class="perf-stat-card">
+            <div class="perf-stat-label">ROTINAS VOLTAIC</div>
+            <div class="perf-stat-val" id="perf-playlists-completed" style="color: #c084fc;">0</div>
+          </div>
+        </div>
+
+        <!-- History Table -->
+        <div class="section-label" style="margin: 24px 0 12px 0;">HISTÓRICO RECENTE DE TREINOS:</div>
+        <div class="history-table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>DATA/HORA</th>
+                <th>TREINO / MODO</th>
+                <th>PONTUAÇÃO</th>
+                <th>PRECISÃO</th>
+                <th>HEADSHOTS</th>
+                <th>TIROS</th>
+                <th>RANK</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer / Export / Clear -->
+        <div class="modal-footer" style="margin-top: 20px;">
+          <div style="display: flex; gap: 12px;">
+            <button class="btn-secondary" id="btn-export-data">EXPORTAR DADOS (JSON)</button>
+            <button class="btn-secondary" id="btn-clear-history" style="color: #ff6b6b;">LIMPAR DADOS</button>
+          </div>
+          <button class="btn-play" id="btn-close-perf-modal" style="padding: 10px 28px; font-size: 1rem;">FECHAR</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYLIST GRAND SUMMARY MODAL -->
+    <div class="modal-backdrop" id="playlist-report-modal">
+      <div class="modal-content playlist-report-content" style="position: relative;">
+        <button class="close-modal-btn" id="btn-close-pl-report" title="Voltar ao Menu Principal" style="position: absolute; top: 16px; right: 20px;">✕</button>
+        <div class="report-header-banner">
+          <span class="pl-badge" id="pl-report-badge">VOLTAIC BENCHMARK</span>
+          <h1 class="report-banner victory" id="pl-report-title">PLAYLIST COMPLETA!</h1>
+          <div class="report-submessage" id="pl-report-subtitle">ROTINA VOLTAIC CONCLUÍDA COM SUCESSO</div>
+        </div>
+
+        <!-- Awarded Rank Card -->
+        <div class="pl-rank-award-box">
+          <span class="pl-rank-award-icon" id="pl-award-icon">💎</span>
+          <div>
+            <div class="pl-rank-award-title" id="pl-award-tier">DESEMPENHO: DIAMANTE // VOLTAIC AIMER</div>
+            <div class="pl-rank-award-desc" id="pl-award-desc">+650 PONTOS VOLTAIC ADICIONADOS À CARREIRA</div>
+          </div>
+        </div>
+
+        <!-- Overall Score Grid -->
+        <div class="report-stats-grid" style="margin: 20px 0;">
+          <div class="report-stat-card">
+            <div class="stat-card-title">PONTUAÇÃO TOTAL</div>
+            <div class="stat-card-value" id="pl-total-score" style="color: var(--val-gold);">88,400</div>
+          </div>
+          <div class="report-stat-card">
+            <div class="stat-card-title">PRECISÃO MÉDIA</div>
+            <div class="stat-card-value" id="pl-avg-acc" style="color: var(--val-cyan);">93%</div>
+          </div>
+          <div class="report-stat-card">
+            <div class="stat-card-title">TOTAL HEADSHOTS</div>
+            <div class="stat-card-value" id="pl-total-hs" style="color: #fff;">48</div>
+          </div>
+        </div>
+
+        <!-- Stages Breakdown -->
+        <div class="section-label" style="text-align: left; margin-bottom: 10px;">DESEMPENHO POR ETAPA:</div>
+        <div class="pl-stages-breakdown" id="pl-stages-breakdown-list">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- Actions -->
+        <div class="report-actions-row" style="margin-top: 24px;">
+          <button class="btn-play" id="btn-replay-playlist">REPETIR PLAYLIST</button>
+          <button class="btn-secondary" id="btn-view-performance-from-pl">VER RANK COMPLETO</button>
+          <button class="btn-secondary" id="btn-pl-to-lobby">VOLTAR AO LOBBY</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAUSE MENU (ESC) -->
+    <div id="pause-screen">
+      <h2 class="pause-title">JOGO PAUSADO</h2>
+      <div class="pause-buttons">
+        <button class="btn-play" id="btn-resume-game" style="font-size: 1.4rem; padding: 12px 24px;">CONTINUAR</button>
+        <button class="btn-secondary" id="btn-restart-game">REINICIAR MODO</button>
+        <button class="btn-secondary" id="btn-pause-end-task" style="color: var(--val-gold); border-color: rgba(255, 197, 61, 0.4);">ENCERRAR TASK & VER RESULTADOS</button>
+        <button class="btn-secondary" id="btn-pause-settings">CONFIGURAÇÕES</button>
+        <button class="btn-secondary" id="btn-pause-lobby">SAIR PARA O LOBBY</button>
+      </div>
+      <div class="pause-hint">Pressione [ESC] ou clique em CONTINUAR para voltar ao foco do jogo</div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

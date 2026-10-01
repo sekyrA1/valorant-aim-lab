@@ -1,0 +1,469 @@
+import * as THREE from 'three';
+
+export class PlayerController {
+  constructor(camera, domElement, soundManager) {
+    this.camera = camera;
+    this.domElement = domElement;
+    this.soundManager = soundManager;
+
+    // Valorant Physical Parameters
+    this.RUN_SPEED = 6.75;      // m/s
+    this.WALK_SPEED = 3.75;     // m/s
+    this.CROUCH_SPEED = 2.0;    // m/s
+    this.ACCELERATION = 48.0;   // snappy acceleration
+    this.DECELERATION = 55.0;   // dead-stopping friction
+    this.GRAVITY = 24.0;        // snappy Valorant gravity
+    this.JUMP_FORCE = 7.4;      // ~1.15m jump height
+
+    // Eye levels
+    this.STAND_EYE_HEIGHT = 1.70;
+    this.CROUCH_EYE_HEIGHT = 1.10;
+    this.currentEyeHeight = this.STAND_EYE_HEIGHT;
+    this.landingDip = 0;
+
+    // Movement state
+    this.position = new THREE.Vector3(0, this.STAND_EYE_HEIGHT, 0);
+    this.velocity = new THREE.Vector3(0, 0, 0);
+    this.isGrounded = true;
+    this.isWalking = false;
+    this.isCrouching = false;
+    this.landingSlowdownTimer = 0;
+
+    // Orientation
+    this.pitch = 0; // Look up/down
+    this.yaw = 0;   // Look left/right
+    this.euler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    // Valorant Sensitivity Settings
+    this.valorantSens = 0.35;
+    this.dpi = 800;
+    this.fov = 103; // Horizontal FOV in 16:9
+    this.loadSettings();
+
+    // Input state
+    this.keys = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      jump: false,
+      walk: false,
+      crouch: false
+    };
+
+    // Footsteps
+    this.footstepTimer = 0;
+
+    // Bounding colliders (obstacles set by map)
+    this.colliders = [];
+    this.playerRadius = 0.4;
+
+    // Weapon Recoil & Camera Kick
+    this.recoilPitch = 0;
+    this.recoilYaw = 0;
+    this.recoilRecoverySpeed = 15.0;
+
+    this.isPointerLocked = false;
+    this.initInputListeners();
+    this.updateCameraFov();
+  }
+
+  loadSettings() {
+    try {
+      const savedSens = localStorage.getItem('valfps_sens');
+      if (savedSens) this.valorantSens = parseFloat(savedSens) || 0.35;
+      const savedDpi = localStorage.getItem('valfps_dpi');
+      if (savedDpi) this.dpi = parseInt(savedDpi) || 800;
+      const savedFov = localStorage.getItem('valfps_fov');
+      if (savedFov) this.fov = parseFloat(savedFov) || 103;
+    } catch (e) {
+      console.warn('Failed to load player settings', e);
+    }
+  }
+
+  saveSettings() {
+    try {
+      localStorage.setItem('valfps_sens', this.valorantSens.toString());
+      localStorage.setItem('valfps_dpi', this.dpi.toString());
+      localStorage.setItem('valfps_fov', this.fov.toString());
+    } catch (e) {
+      console.warn('Failed to save player settings', e);
+    }
+  }
+
+  setSensitivity(sens) {
+    this.valorantSens = Math.max(0.01, Math.min(5.0, sens));
+    this.saveSettings();
+  }
+
+  setDpi(dpi) {
+    this.dpi = Math.max(100, Math.min(6400, dpi));
+    this.saveSettings();
+  }
+
+  setFov(horizontalFov) {
+    this.fov = Math.max(70, Math.min(130, horizontalFov));
+    this.saveSettings();
+    this.updateCameraFov();
+  }
+
+  updateCameraFov() {
+    // Convert horizontal FOV (16:9) to vertical FOV for Three.js camera
+    const aspect = window.innerWidth / window.innerHeight;
+    const hFovRad = (this.fov * Math.PI) / 180;
+    const vFovRad = 2 * Math.atan(Math.tan(hFovRad / 2) / aspect);
+    this.camera.fov = (vFovRad * 180) / Math.PI;
+    this.camera.updateProjectionMatrix();
+  }
+
+  requestPointerLock() {
+    if (this.domElement && this.domElement.requestPointerLock) {
+      try {
+        const res = this.domElement.requestPointerLock();
+        if (res && typeof res.catch === 'function') {
+          res.catch(err => {
+            console.warn('Pointer lock request ignored or deferred by browser:', err);
+          });
+        }
+      } catch (err) {
+        console.warn('Pointer lock error:', err);
+      }
+    }
+  }
+
+  exitPointerLock() {
+    if (document.exitPointerLock && document.pointerLockElement) {
+      try {
+        document.exitPointerLock();
+      } catch (err) {
+        console.warn('Exit pointer lock error:', err);
+      }
+    }
+  }
+
+  initInputListeners() {
+    window.addEventListener('keydown', (e) => {
+      this.handleKey(e.code, true);
+    });
+
+    window.addEventListener('keyup', (e) => {
+      this.handleKey(e.code, false);
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+      this.isPointerLocked = (document.pointerLockElement === this.domElement);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isPointerLocked) return;
+      this.handleMouseMove(e.movementX, e.movementY);
+    });
+  }
+
+  handleKey(code, isDown) {
+    switch (code) {
+      case 'KeyW':
+      case 'ArrowUp':
+        this.keys.forward = isDown;
+        break;
+      case 'KeyS':
+      case 'ArrowDown':
+        this.keys.backward = isDown;
+        break;
+      case 'KeyA':
+      case 'ArrowLeft':
+        this.keys.left = isDown;
+        break;
+      case 'KeyD':
+      case 'ArrowRight':
+        this.keys.right = isDown;
+        break;
+      case 'Space':
+        this.keys.jump = isDown;
+        break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        this.keys.walk = isDown;
+        break;
+      case 'ControlLeft':
+      case 'ControlRight':
+      case 'KeyC':
+        this.keys.crouch = isDown;
+        break;
+    }
+  }
+
+  handleMouseMove(movementX, movementY) {
+    // Authentic Valorant sensitivity conversion
+    // Valorant uses a factor of 0.07 degrees per count * sens
+    const degreesPerCount = this.valorantSens * 0.07;
+    const radiansPerCount = (degreesPerCount * Math.PI) / 180;
+
+    const deltaPitch = movementY * radiansPerCount;
+    const deltaYaw = movementX * radiansPerCount;
+
+    // Active Spray Control Compensation:
+    // If the player pulls DOWN (movementY > 0 => deltaPitch > 0) while there is active recoil pitch,
+    // mouse input directly absorbs the recoil pitch!
+    if (deltaPitch > 0 && this.recoilPitch > 0) {
+      const absorbed = Math.min(this.recoilPitch, deltaPitch);
+      this.recoilPitch -= absorbed;
+      const remaining = deltaPitch - absorbed;
+      this.pitch -= remaining;
+    } else {
+      this.pitch -= deltaPitch;
+    }
+
+    this.yaw -= deltaYaw;
+
+    // Pitch limit: -89° to +89°
+    const maxPitch = (89 * Math.PI) / 180;
+    this.pitch = Math.max(-maxPitch, Math.min(maxPitch, this.pitch));
+
+    this.updateCameraRotation();
+  }
+
+  applyRecoil(pitchKick, yawKick = 0, recoverySpeed = 15.0) {
+    this.recoilPitch += pitchKick;
+    this.recoilYaw += yawKick;
+    // Cap maximum pitch kick in a single burst
+    this.recoilPitch = Math.min(0.24, this.recoilPitch);
+    this.recoilRecoverySpeed = recoverySpeed;
+    this.updateCameraRotation();
+  }
+
+  updateCameraRotation() {
+    this.euler.x = this.pitch + this.recoilPitch;
+    this.euler.y = this.yaw + this.recoilYaw;
+    this.camera.quaternion.setFromEuler(this.euler);
+  }
+
+
+  setColliders(colliders) {
+    this.colliders = colliders;
+  }
+
+  setPosition(x, y, z) {
+    this.position.set(x, y + this.currentEyeHeight, z);
+    this.velocity.set(0, 0, 0);
+    this.camera.position.copy(this.position);
+  }
+
+  setLookAngles(yawDeg, pitchDeg = 0) {
+    this.yaw = (yawDeg * Math.PI) / 180;
+    this.pitch = (pitchDeg * Math.PI) / 180;
+    this.recoilPitch = 0;
+    this.recoilYaw = 0;
+    this.updateCameraRotation();
+  }
+
+  getHorizontalSpeed() {
+    return Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
+  }
+
+  update(dt, weaponManager) {
+    // 1. Determine target speed
+    this.isCrouching = this.keys.crouch;
+    this.isWalking = this.keys.walk;
+
+    const baseRun = (weaponManager && weaponManager.currentWeaponType && weaponManager.currentWeaponType.isMelee) ? 7.15 : this.RUN_SPEED;
+    let targetMaxSpeed = baseRun;
+    if (this.isCrouching) {
+      targetMaxSpeed = this.CROUCH_SPEED;
+    } else if (this.isWalking) {
+      targetMaxSpeed = this.WALK_SPEED;
+    }
+
+    // Landing slowdown recovery
+    if (this.landingSlowdownTimer > 0) {
+      this.landingSlowdownTimer -= dt;
+      targetMaxSpeed *= 0.72; // Valorant jump landing recovery penalty
+    }
+
+    // 2. Input movement direction in camera horizontal frame
+    let wishDir = new THREE.Vector3(0, 0, 0);
+    if (this.keys.forward) wishDir.z -= 1;
+    if (this.keys.backward) wishDir.z += 1;
+    if (this.keys.left) wishDir.x -= 1;
+    if (this.keys.right) wishDir.x += 1;
+
+    if (wishDir.lengthSq() > 0) {
+      wishDir.normalize();
+      // Rotate wish direction by yaw
+      wishDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);
+    }
+
+    // 3. Acceleration & Counter-strafing / Dead-stop friction
+    const currentHorizVel = new THREE.Vector2(this.velocity.x, this.velocity.z);
+    const hasInput = wishDir.lengthSq() > 0;
+
+    if (this.isGrounded) {
+      if (hasInput) {
+        const targetVel = new THREE.Vector2(wishDir.x * targetMaxSpeed, wishDir.z * targetMaxSpeed);
+        // Accelerate towards target velocity
+        const diff = targetVel.clone().sub(currentHorizVel);
+        const maxDelta = this.ACCELERATION * dt;
+        if (diff.length() > maxDelta) {
+          diff.setLength(maxDelta);
+        }
+        currentHorizVel.add(diff);
+      } else {
+        // High dead-stopping friction
+        const speed = currentHorizVel.length();
+        const drop = this.DECELERATION * dt;
+        const newSpeed = Math.max(0, speed - drop);
+        if (speed > 0) {
+          currentHorizVel.multiplyScalar(newSpeed / speed);
+        }
+      }
+    } else {
+      // Air acceleration (limited in Valorant)
+      if (hasInput) {
+        const airAccel = 12.0 * dt;
+        currentHorizVel.x += wishDir.x * airAccel;
+        currentHorizVel.z += wishDir.z * airAccel;
+        // Cap horizontal speed in air
+        if (currentHorizVel.length() > this.RUN_SPEED) {
+          currentHorizVel.setLength(this.RUN_SPEED);
+        }
+      }
+    }
+
+    this.velocity.x = currentHorizVel.x;
+    this.velocity.z = currentHorizVel.y;
+
+    // 4. Jump & Gravity
+    if (this.isGrounded) {
+      if (this.keys.jump) {
+        this.velocity.y = this.JUMP_FORCE;
+        this.isGrounded = false;
+        this.soundManager.playJump();
+      } else {
+        this.velocity.y = 0;
+      }
+    } else {
+      this.velocity.y -= this.GRAVITY * dt;
+    }
+
+    // 5. Apply Movement & Collision Detection
+    const deltaMove = this.velocity.clone().multiplyScalar(dt);
+    
+    // Horizontal step with collision
+    this.position.x += deltaMove.x;
+    this.resolveHorizontalCollisions('x');
+    this.position.z += deltaMove.z;
+    this.resolveHorizontalCollisions('z');
+
+    // Vertical step
+    this.position.y += deltaMove.y;
+
+    // Floor and obstacle vertical collision
+    let groundHeight = 0;
+    for (const box of this.colliders) {
+      // Check if player is above the box bounds horizontally
+      if (
+        this.position.x + this.playerRadius > box.min.x &&
+        this.position.x - this.playerRadius < box.max.x &&
+        this.position.z + this.playerRadius > box.min.z &&
+        this.position.z - this.playerRadius < box.max.z
+      ) {
+        if (box.max.y <= this.position.y - this.currentEyeHeight + 0.3) {
+          groundHeight = Math.max(groundHeight, box.max.y);
+        }
+      }
+    }
+
+    const targetEyeY = groundHeight + this.currentEyeHeight;
+    if (this.position.y <= targetEyeY) {
+      if (!this.isGrounded && this.velocity.y < -3.0) {
+        // Just landed!
+        this.soundManager.playLand();
+        this.landingSlowdownTimer = 0.16;
+        this.landingDip = 0.08;
+      }
+      this.position.y = targetEyeY;
+      this.velocity.y = 0;
+      this.isGrounded = true;
+    } else {
+      this.isGrounded = false;
+    }
+
+    // 6. Crouch Transition & Landing Dip Recovery
+    const targetHeight = this.isCrouching ? this.CROUCH_EYE_HEIGHT : this.STAND_EYE_HEIGHT;
+    this.currentEyeHeight += (targetHeight - this.currentEyeHeight) * (dt * 12);
+
+    if (this.landingDip > 0) {
+      this.landingDip = Math.max(0, this.landingDip - dt * 0.4);
+    }
+
+    // 7. Update Camera Position
+    this.camera.position.set(
+      this.position.x,
+      this.position.y - this.landingDip,
+      this.position.z
+    );
+
+    // 7.5. Smooth Camera Recoil Recovery
+    if (this.recoilPitch > 0) {
+      const drop = this.recoilRecoverySpeed * dt;
+      this.recoilPitch = Math.max(0, this.recoilPitch - drop);
+    }
+    if (Math.abs(this.recoilYaw) > 0.0001) {
+      this.recoilYaw -= this.recoilYaw * Math.min(1.0, this.recoilRecoverySpeed * 0.9 * dt);
+    } else {
+      this.recoilYaw = 0;
+    }
+    this.updateCameraRotation();
+
+    // 8. Footsteps
+    const horizSpeed = this.getHorizontalSpeed();
+    if (this.isGrounded && horizSpeed > 0.8) {
+      this.footstepTimer += dt * horizSpeed;
+      const stepInterval = this.isWalking ? 2.4 : 1.9;
+      if (this.footstepTimer >= stepInterval) {
+        this.soundManager.playFootstep(this.isWalking ? 'walk' : 'run');
+        this.footstepTimer = 0;
+      }
+    } else {
+      this.footstepTimer = 0;
+    }
+
+    // 9. Update weapon viewmodel
+    if (weaponManager) {
+      weaponManager.update(dt, horizSpeed, this.isGrounded);
+    }
+  }
+
+  resolveHorizontalCollisions(axis) {
+    const pMinX = this.position.x - this.playerRadius;
+    const pMaxX = this.position.x + this.playerRadius;
+    const pMinZ = this.position.z - this.playerRadius;
+    const pMaxZ = this.position.z + this.playerRadius;
+    const playerFeet = this.position.y - this.currentEyeHeight;
+    const playerHead = this.position.y;
+
+    for (const box of this.colliders) {
+      // Check vertical overlap
+      if (playerFeet < box.max.y - 0.25 && playerHead > box.min.y) {
+        // Check horizontal overlap
+        if (pMaxX > box.min.x && pMinX < box.max.x && pMaxZ > box.min.z && pMinZ < box.max.z) {
+          if (axis === 'x') {
+            if (this.velocity.x > 0) {
+              this.position.x = box.min.x - this.playerRadius;
+            } else if (this.velocity.x < 0) {
+              this.position.x = box.max.x + this.playerRadius;
+            }
+            this.velocity.x = 0;
+          } else if (axis === 'z') {
+            if (this.velocity.z > 0) {
+              this.position.z = box.min.z - this.playerRadius;
+            } else if (this.velocity.z < 0) {
+              this.position.z = box.max.z + this.playerRadius;
+            }
+            this.velocity.z = 0;
+          }
+        }
+      }
+    }
+  }
+}
