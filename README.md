@@ -1,4 +1,4 @@
-# VALORANT AIM LAB - 3D Web FPS & Retake Simulator
+# Kinetic Aim Studio
 
 ## Site publicado
 
@@ -6,7 +6,13 @@ Jogue pelo GitHub Pages: https://sekyrA1.github.io/valorant-aim-lab/
 
 O deploy é feito automaticamente ao enviar alterações para `main`.
 
-Um FPS 3D completo para navegador construído com **Three.js** e **Vite**, projetado para replicar com fidelidade a movimentação, física de tiro e mecânicas do **VALORANT**, além de contar com modos de treino de mira estilo **Aimlab** e **KovaaK's**, simulação real de **Retake com Defuse da Spike**, **Gráfico Oficial de Erro de Disparo** e **Modo de Hold de Pixel com Cenários Reais**.
+Um estúdio de treino de mira 3D para navegador, construído com **Three.js** e **Vite**, com exercícios de precisão, tracking, reação, movimentação, defesa de site e playlists personalizadas.
+
+## Interface
+
+Navegação lateral para **Exercícios**, **Playlists**, **Escola de mira** e **Meu progresso**. A biblioteca permite busca sem distinguir acentos, filtros por categoria e seleção de cartões por Enter ou Espaço. Use `/` para buscar. A barra inferior mostra o treino e a dificuldade selecionados, com acesso às armas e ao início da sessão.
+
+O fundo animado tem **50% de opacidade**, sem afetar a opacidade do texto ou dos controles. As animações param durante o jogo ou quando a aba está oculta e respeitam a preferência de movimento reduzido. Configurações, pausa, resultados e HUD usam a mesma identidade visual. Os dados locais e códigos compartilhados continuam compatíveis.
 
 ---
 

@@ -16,6 +16,7 @@ import { TrainingAcademy, renderGuidedPlaylists } from './trainingAcademy.js';
 import { TASK_GUIDES, assessTraining } from './trainingGuides.js';
 import { CustomPlaylistStore, CustomPlaylistEditor, escapeHTML } from './customPlaylists.js';
 import { loadBotModels } from './botRig.js';
+import { initializeInterface } from './interface.js';
 
 loadBotModels().catch(error => console.error('Não foi possível carregar os bots do Blender:', error));
 
@@ -105,18 +106,18 @@ const gameModeManager = new GameModeManager(
     onModeStarted: (mode) => {
       const modeTitles = {
         [MODES.RETAKE]: 'RETAKE - ASCENT A',
-        [MODES.GRIDSHOT]: 'AIMLAB - GRIDSHOT',
-        [MODES.MICROSHOT]: 'KOVAAKS - MICROSHOT',
+        [MODES.GRIDSHOT]: 'GRIDSHOT',
+        [MODES.MICROSHOT]: 'MICROSHOT',
         [MODES.TRACKING]: 'STRAFE TRACKING',
         [MODES.RANGE]: 'THE RANGE - TREINO',
         [MODES.HOLD_PIXEL]: 'ANGLE HOLD - TRAVESSIA CONTÍNUA',
         [MODES.DRONES]: 'DRONE SURVIVAL - DESVIE & ELIMINE',
         [MODES.JETT_NEON]: 'JETT & NEON - PASSAGENS DE ATAQUE',
         [MODES.ANTI_RUSH]: 'ANTI-RUSH • ASCENT A',
-        [MODES.VOLTAIC_STATIC]: 'VOLTAIC 1w6ts - STATIC CLICKING',
-        [MODES.VOLTAIC_PASU]: 'VOLTAIC PASU - DYNAMIC BOUNCE',
-        [MODES.VOLTAIC_SMOOTH]: 'VOLTAIC - SMOOTHBOT 3D',
-        [MODES.VOLTAIC_SWITCH]: 'VOLTAIC - PAT TARGET SWITCH',
+        [MODES.VOLTAIC_STATIC]: '1w6ts - STATIC CLICKING',
+        [MODES.VOLTAIC_PASU]: 'PASU - DYNAMIC BOUNCE',
+        [MODES.VOLTAIC_SMOOTH]: 'SMOOTHBOT 3D',
+        [MODES.VOLTAIC_SWITCH]: 'TARGET SWITCH',
         [MODES.YPRAC_PREAIM]: 'YPRAC - PRE-AIM ASCENT A',
         [MODES.YPRAC_DEFENSE]: 'YPRAC - SITE DEFENSE',
         [MODES.YPRAC_SPRAY]: 'YPRAC - SPRAY TRANSFER',
@@ -1022,7 +1023,7 @@ function showPlaylistReportModal(playlist, summary, recorded) {
 
   const awardDesc = document.getElementById('pl-award-desc');
   if (awardDesc) {
-    awardDesc.innerText = `+${recorded.earnedPoints} PONTOS VOLTAIC ADICIONADOS À CARREIRA`;
+    awardDesc.innerText = `+${recorded.earnedPoints} PONTOS DE EVOLUÇÃO ADICIONADOS À CARREIRA`;
   }
 
   const totalScoreEl = document.getElementById('pl-total-score');
@@ -1122,7 +1123,7 @@ if (tabModesView && tabPlaylistsView && modesViewContainer && playlistsViewConta
     tabPlaylistsView.classList.remove('active');
     modesViewContainer.style.display = 'block';
     playlistsViewContainer.style.display = 'none';
-    btnStartGame.innerText = 'JOGAR TREINO';
+    btnStartGame.innerText = 'Iniciar treino ↗';
   });
 
   tabPlaylistsView.addEventListener('click', () => {
@@ -1134,7 +1135,7 @@ if (tabModesView && tabPlaylistsView && modesViewContainer && playlistsViewConta
     tabModesView.classList.remove('active');
     modesViewContainer.style.display = 'none';
     playlistsViewContainer.style.display = 'block';
-    btnStartGame.innerText = 'INICIAR ROTINA';
+    btnStartGame.innerText = 'Iniciar playlist ↗';
     updatePlaylistRecordsUI();
   });
 }
@@ -1214,7 +1215,7 @@ document.getElementById('tab-academy-view').onclick = () => {
   activeLobbyTab = 'academy'; modesViewContainer.style.display = 'none'; playlistsViewContainer.style.display = 'none';
   document.getElementById('academy-view-container').style.display = 'block';
   tabModesView.classList.remove('active'); tabPlaylistsView.classList.remove('active');
-  document.getElementById('tab-academy-view').classList.add('active'); btnStartGame.innerText = 'PRATICAR LIÇÃO';
+  document.getElementById('tab-academy-view').classList.add('active'); btnStartGame.innerText = 'Praticar lição ↗';
   trainingAcademy.show(trainingAcademy.mode);
 };
 window.addEventListener('keydown', event => {
@@ -1271,7 +1272,7 @@ function renderPerformanceModal() {
 
   const rankTitleEl = document.getElementById('perf-rank-title');
   if (rankTitleEl) {
-    rankTitleEl.innerText = `RANK VOLTAIC: ${rank.name.toUpperCase()} (${rank.tier})`;
+    rankTitleEl.innerText = `SEU NÍVEL: ${rank.name.toUpperCase()}`;
     rankTitleEl.style.color = rank.color;
   }
 
@@ -1325,7 +1326,7 @@ function renderPerformanceModal() {
   const tbody = document.getElementById('history-table-body');
   if (tbody) {
     if (!performanceTracker.history || performanceTracker.history.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--val-gray); padding: 24px;">Nenhum treino registrado ainda. Inicie um modo ou rotina Voltaic!</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--val-gray); padding: 24px;">Nenhum treino registrado ainda. Inicie um exercício ou uma playlist!</td></tr>`;
     } else {
       tbody.innerHTML = performanceTracker.history.slice(0, 15).map(item => {
         const isPl = item.type === 'playlist';
@@ -1335,7 +1336,7 @@ function renderPerformanceModal() {
         return `
           <tr>
             <td style="color: var(--val-gray); font-size: 0.8rem;">${item.dateFormatted || '—'}</td>
-            <td style="font-weight: 700; color: #fff;">${typeBadge}${escapeHTML(item.modeLabel || item.mode)}</td>
+            <td style="font-weight: 700; color: #fff;">${typeBadge}${escapeHTML((item.modeLabel || item.mode || 'Treino').replace(/\bvalorant\b/gi, 'FPS tático'))}</td>
             <td style="color: var(--val-gold); font-weight: 700;">${(item.score || 0).toLocaleString()}</td>
             <td style="color: ${(item.accuracy || 0) >= 70 ? 'var(--val-cyan)' : '#ff6b6b'}; font-weight: 700;">${item.accuracy || 0}%</td>
             <td style="color: #fff;">${item.headshots || 0}</td>
@@ -1379,7 +1380,7 @@ if (btnExportData) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `valorant_aim_performance_${Date.now()}.json`;
+    a.download = `kinetic_aim_performance_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   });
@@ -1474,7 +1475,7 @@ function flashSaveStatus() {
     saveText.style.color = '#00ff88';
     clearTimeout(saveText._timer);
     saveText._timer = setTimeout(() => {
-      saveText.innerText = 'CONFIGURAÇÕES SALVAS (LOCALSTORAGE)';
+      saveText.innerText = 'Preferências salvas neste dispositivo';
       saveText.style.color = 'var(--val-gray)';
     }, 1500);
   }
@@ -1896,4 +1897,5 @@ function animate() {
 }
 
 // Start Main Loop
+initializeInterface();
 animate();

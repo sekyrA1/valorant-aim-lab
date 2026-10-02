@@ -17,17 +17,17 @@ export const VOLTAIC_TIERS = [
 export const PLAYLIST_DEFINITIONS = {
   voltaic_benchmark: {
     id: 'voltaic_benchmark',
-    title: 'VOLTAIC VALORANT BENCHMARK',
-    badge: 'BENCHMARK VOLTAIC',
+    title: 'AVALIAÇÃO COMPLETA DE MIRA',
+    badge: 'AVALIAÇÃO DE MIRA',
     badgeColor: '#00f0ff',
     icon: '⚡',
-    subtitle: '5 Etapas • Avaliação Oficial de Mira Voltaic',
-    desc: 'Rotina rigorosa baseada nos benchmarks oficiais da comunidade Voltaic: 1w6ts Static Clicking, Pasu Dynamic Bouncing, Smoothbot 3D Harmonic Tracking, PatTargetSwitch e reação milimétrica.',
+    subtitle: '5 Etapas • Avaliação de precisão, tracking e reação',
+    desc: 'Rotina de avaliação com 1w6ts Static Clicking, Pasu Dynamic Bouncing, Smoothbot 3D Harmonic Tracking, PatTargetSwitch e reação milimétrica.',
     stages: [
-      { mode: 'voltaic_static', time: 30, title: 'VOLTAIC 1w6ts (STATIC CLICKING)', tag: 'Static 1w6ts', desc: 'Elimine 6 alvos pequenos mantendo ritmo e multiplicador de combo.' },
-      { mode: 'voltaic_pasu', time: 30, title: 'VOLTAIC PASU (DYNAMIC BOUNCE)', tag: 'Dynamic Pasu', desc: 'Acerte orbes dinâmicos em constante ricochete e trajetória variável.' },
-      { mode: 'voltaic_smooth', time: 30, title: 'VOLTAIC SMOOTHBOT (3D TRACKING)', tag: 'Smoothbot', desc: 'Rastreamento 3D contínuo e suave com orbe cinemático.' },
-      { mode: 'voltaic_switch', time: 30, title: 'VOLTAIC PAT TARGET SWITCH', tag: 'Target Switch', desc: 'Transição rápida entre 4 alvos móveis com foco em velocidade de troca.' },
+      { mode: 'voltaic_static', time: 30, title: '1w6ts (STATIC CLICKING)', tag: 'Static 1w6ts', desc: 'Elimine 6 alvos pequenos mantendo ritmo e multiplicador de combo.' },
+      { mode: 'voltaic_pasu', time: 30, title: 'PASU (DYNAMIC BOUNCE)', tag: 'Dynamic Pasu', desc: 'Acerte orbes dinâmicos em constante ricochete e trajetória variável.' },
+      { mode: 'voltaic_smooth', time: 30, title: 'SMOOTHBOT (3D TRACKING)', tag: 'Smoothbot', desc: 'Rastreamento 3D contínuo e suave com orbe cinemático.' },
+      { mode: 'voltaic_switch', time: 30, title: 'PAT TARGET SWITCH', tag: 'Target Switch', desc: 'Transição rápida entre 4 alvos móveis com foco em velocidade de troca.' },
       { mode: 'hold_pixel', time: 30, scenario: 'tight_pixel', title: 'ANGLE HOLD (CRACK 1MM)', tag: 'Reação Pura', desc: 'Segure a fresta e dispare no primeiro pixel de movimento.' }
     ]
   },
@@ -41,7 +41,7 @@ export const PLAYLIST_DEFINITIONS = {
     desc: 'Aqueça com Gridshot, precisão estática, rastreamento e troca rápida entre alvos móveis.',
     stages: [
       { mode: 'gridshot', time: 30, title: 'GRIDSHOT', tag: 'Flick', desc: 'Aqueça a velocidade de troca entre alvos estáticos.' },
-      { mode: 'voltaic_static', time: 30, title: 'VOLTAIC 1w6ts PRECISÃO', tag: 'Precisão', desc: 'Ativação de ritmo, micro-ajuste e combo.' },
+      { mode: 'voltaic_static', time: 30, title: '1w6ts PRECISÃO', tag: 'Precisão', desc: 'Ativação de ritmo, micro-ajuste e combo.' },
       { mode: 'voltaic_smooth', time: 30, title: 'SMOOTHBOT 3D', tag: 'Tracking', desc: 'Mantenha a mira no alvo em movimento contínuo.' },
       { mode: 'voltaic_switch', time: 45, title: 'TARGET SWITCH', tag: 'Switch', desc: 'Troque entre alvos com direção e velocidade variáveis.' }
     ]
@@ -55,8 +55,8 @@ export const PLAYLIST_DEFINITIONS = {
     subtitle: '4 Etapas • Micro-Ajustes Cirúrgicos & 1-Taps',
     desc: 'Treine micro-ajustes, precisão estática, reação no Angle Hold e troca entre alvos móveis.',
     stages: [
-      { mode: 'microshot', time: 30, title: 'KOVAAKS MICROSHOT', tag: 'Micro-Alvos', desc: 'Alvos diminutos que forçam micro-correções milimétricas.' },
-      { mode: 'voltaic_static', time: 30, title: 'VOLTAIC 1w6ts CLICKING', tag: 'Static', desc: 'Alterne alvos mantendo ritmo constante e alta precisão.' },
+      { mode: 'microshot', time: 30, title: 'MICROSHOT', tag: 'Micro-Alvos', desc: 'Alvos diminutos que forçam micro-correções milimétricas.' },
+      { mode: 'voltaic_static', time: 30, title: '1w6ts CLICKING', tag: 'Static', desc: 'Alterne alvos mantendo ritmo constante e alta precisão.' },
       { mode: 'hold_pixel', time: 30, scenario: 'ascent_main', title: 'ANGLE HOLD A-MAIN', tag: 'Reação', desc: 'Reação imediata no primeiro pixel de saída do bot.' },
       { mode: 'voltaic_switch', time: 45, title: 'TARGET SWITCH', tag: 'Switch', desc: 'Troque de alvo enquanto os orbes variam o movimento.' }
     ]

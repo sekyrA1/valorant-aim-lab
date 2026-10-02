@@ -3,8 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VALORANT AIM LAB - 3D Web FPS & Retake Simulator</title>
+    <title>Kinetic Aim Studio — Treino de mira</title>
+    <meta name="theme-color" content="#0b1018" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <meta name="description" content="Treine precisão, reação e movimento. Explore exercícios, monte playlists e acompanhe sua evolução no Kinetic Aim Studio." />
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/interface.css" />
   </head>
   <body>
     <!-- 3D Three.js WebGL Canvas Container -->
@@ -42,7 +46,7 @@
       <!-- Playlist Tracking Pill & Stage Progress in HUD -->
       <div id="playlist-hud-container" style="display: none;">
         <div class="playlist-hud-pill">
-          <span class="pl-badge" id="pl-hud-badge">VOLTAIC BENCHMARK</span>
+          <span class="pl-badge" id="pl-hud-badge">AVALIAÇÃO DE MIRA</span>
           <span class="pl-stage-title" id="pl-hud-stage-title">ETAPA 1/4: MICRO-FLICKS</span>
         </div>
         <p id="training-stage-tip"></p>
@@ -106,7 +110,7 @@
         </div>
       </div>
 
-      <!-- Shooting Error Graph Widget (Valorant Style) -->
+      <!-- Shooting Error Graph Widget -->
       <div id="shooting-error-widget">
         <canvas id="shooting-error-canvas" width="220" height="74"></canvas>
         <div class="graph-legend">
@@ -123,22 +127,27 @@
 
     <!-- MAIN LOBBY / MENU SCREEN -->
     <div id="lobby-screen">
+      <div class="ambient-background" aria-hidden="true"><i class="ambient-orb orb-one"></i><i class="ambient-orb orb-two"></i><i class="ambient-orb orb-three"></i><div class="ambient-grid"></div></div>
       <div class="lobby-header">
         <div class="brand-container">
-          <div class="val-logo-mark"></div>
           <div class="brand-text">
-            <h1>VALORANT AIM LAB</h1>
-            <p>3D FPS RETAKE & AIM TRAINER</p>
+            <p>SEU ESPAÇO DE TREINO</p>
+            <h1 id="workspace-title">Biblioteca de exercícios</h1>
           </div>
         </div>
         <div class="lobby-nav-actions">
-          <button class="btn-secondary highlight-cyan" id="btn-open-performance">📊 DESEMPENHO & RANK</button>
-          <button class="btn-secondary highlight-gold" id="btn-open-settings">⚙️ CONFIGURAÇÕES & MIRA</button>
+          <button class="btn-secondary highlight-cyan" id="btn-open-performance">Desempenho ↗</button>
+          <button class="btn-secondary highlight-gold" id="btn-open-settings">Configurações</button>
           <button class="btn-secondary" id="btn-toggle-sound">SOM: LIGADO</button>
         </div>
       </div>
 
-      <!-- Lobby Navigation Tabs (Modos Individuais vs Rotinas Voltaic/Yprac vs Desempenho) -->
+      <section class="studio-hero" aria-labelledby="hero-title">
+        <div class="hero-copy"><span class="eyebrow"><i></i> UM POUCO MELHOR A CADA SESSÃO</span><h2 id="hero-title">Precisão é prática.<br><em>Encontre seu ritmo.</em></h2><p>Do primeiro microajuste à defesa do site. Escolha seu foco e transforme treino em consistência.</p><div class="hero-actions"><button id="hero-explore" type="button">Explorar treinos <span>↗</span></button><button id="hero-playlist" type="button">Montar minha playlist <span>＋</span></button></div><div class="hero-metrics"><span><strong id="studio-task-count">35</strong> exercícios</span><span><strong>10</strong> categorias</span><span><strong>3</strong> dificuldades</span></div></div>
+        <div class="hero-visual" aria-hidden="true"><svg viewBox="0 0 360 320" fill="none"><defs><radialGradient id="target-halo"><stop stop-color="#b8f47a" stop-opacity=".18"/><stop offset="1" stop-color="#b8f47a" stop-opacity="0"/></radialGradient></defs><circle cx="180" cy="160" r="150" fill="url(#target-halo)"/><g stroke="#a5bdca" stroke-opacity=".19"><circle cx="180" cy="160" r="118"/><circle cx="180" cy="160" r="88"/><circle cx="180" cy="160" r="51"/><path d="M28 160H332M180 8V312" stroke-dasharray="3 7"/></g><g class="target-orbit" stroke="#b8f47a" stroke-width="2"><path d="M62 160a118 118 0 0 1 118-118M298 160a118 118 0 0 1-118 118"/><circle cx="180" cy="42" r="5" fill="#b8f47a"/></g><path d="M110 201L180 160L247 93" stroke="#77ded7" stroke-opacity=".5" stroke-dasharray="4 5"/><g class="target-pulse"><circle cx="180" cy="160" r="19" stroke="#b8f47a"/><path d="M171 160h18M180 151v18" stroke="#b8f47a" stroke-width="2"/></g><circle cx="110" cy="201" r="7" fill="#77ded7"/><circle cx="247" cy="93" r="9" fill="#b8f47a"/></svg><span class="visual-coordinate">X 180.00 / Y 160.00</span><span class="visual-label"><i></i> FOCO. CONTROLE. REPETIÇÃO.</span></div>
+      </section>
+
+      <!-- Training difficulty -->
       <div class="difficulty-selector" aria-label="Dificuldade das tarefas">
         <span>DIFFICULDADE</span>
         <button type="button" class="difficulty-btn" data-difficulty="easy">FÁCIL</button>
@@ -146,24 +155,31 @@
         <button type="button" class="difficulty-btn" data-difficulty="hard">DIFÍCIL</button>
         <small>Padrão dos modos e rotinas prontas. Playlists próprias têm dificuldade por etapa.</small>
       </div>
-      <div class="lobby-tabs-row">
+      <aside class="studio-sidebar">
+        <a class="studio-brand" href="#" aria-label="Kinetic Aim Studio, início"><span class="studio-mark"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M7 7v18M25 7L7 25M16 16l9 9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><span>KINETIC<small>AIM STUDIO</small></span></a>
+        <span class="sidebar-label">WORKSPACE</span>
+      <nav class="lobby-tabs-row" aria-label="Navegação principal">
         <button class="lobby-tab active" id="tab-modes-view" type="button">
-          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (20)
+          <span class="nav-symbol" aria-hidden="true">◎</span> Exercícios
         </button>
         <button class="lobby-tab" id="tab-playlists-view" type="button">
-          <span style="color: var(--val-gold);">⚡</span> ROTINAS & MINHAS PLAYLISTS
+          <span class="nav-symbol" aria-hidden="true">≋</span> Playlists
         </button>
-        <button class="lobby-tab" id="tab-academy-view" type="button">📚 ESCOLA DE MIRA</button>
+        <button class="lobby-tab" id="tab-academy-view" type="button"><span class="nav-symbol" aria-hidden="true">◇</span> Escola de mira</button>
         <button class="lobby-tab" id="tab-performance-view" type="button">
-          <span style="color: #00ff88;">📊</span> MEU DESEMPENHO & VOLTAIC RANK
+          <span class="nav-symbol" aria-hidden="true">▥</span> Meu progresso
         </button>
-      </div>
+      </nav>
+      <div class="sidebar-bottom"><div class="sidebar-note"><span class="eyebrow">TREINE COM INTENÇÃO</span><p>Confirme a mira.<br>Encontre a cadência.<br>Repita com controle.</p></div><span class="local-indicator"><i></i> Progresso salvo neste dispositivo</span><span class="studio-version">KINETIC / ESTÚDIO DE MIRA</span></div>
+      </aside>
 
       <!-- 1. Mode Selection Grid (Individual Modes) -->
       <div id="modes-view-container">
         <div class="modes-grid-container">
-          <div class="section-label">SELECIONE O MODO DE TREINO INDIVIDUAL:</div>
+          <div class="library-toolbar"><div><span class="eyebrow">ESCOLHA SEU FOCO</span><h2>Seus próximos treinos</h2></div><label class="task-search"><span aria-hidden="true">⌕</span><input id="task-search" type="search" placeholder="Buscar exercício…" aria-label="Buscar exercícios" autocomplete="off" /><kbd>/</kbd></label></div>
+          <div class="library-status"><span id="task-filter-count" role="status" aria-live="polite">35 exercícios disponíveis</span><button id="task-filter-clear" type="button" hidden>Limpar filtros ×</button></div>
           <nav class="task-category-nav" aria-label="Categorias de treino">
+<button type="button" id="task-category-all" class="active">Todos <span>35</span></button>
 <a href="#tasks-precision">Precisão e flicks <span>2</span></a>
 <a href="#tasks-dynamic">Clicking dinâmico <span>3</span></a>
 <a href="#tasks-micro">Microajuste e correção <span>3</span></a>
@@ -175,12 +191,13 @@
 <a href="#tasks-movement">Movimento e parada <span>2</span></a>
 <a href="#tasks-methods">Métodos conscientes <span>8</span></a>
 </nav>
+<div id="task-search-empty" class="search-empty" hidden><span>⌕</span><h3>Nenhum exercício encontrado</h3><p>Tente outro termo ou remova o filtro de categoria.</p><button type="button" id="task-search-reset">Ver todos os exercícios</button></div>
 <section class="task-category" id="tasks-precision" aria-labelledby="tasks-precision-title">
 <header class="task-category-header"><h2 id="tasks-precision-title">Precisão e flicks <span>2 tasks</span></h2><p>Cadência e velocidade de primeiro tiro.</p></header>
 <div class="modes-cards" data-skill-category="precision">
 <div class="mode-card" data-mode="gridshot" id="card-gridshot">
             <div>
-              <span class="mode-badge-tag">AIMLAB CLÁSSICO</span>
+              <span class="mode-badge-tag">VELOCIDADE & FLICKS</span>
               <h2 class="mode-title">GRIDSHOT</h2>
               <p class="mode-desc">3 alvos ativos simultâneos. Treine velocidade de reação, reflexos de flick e memória muscular máxima.</p>
             </div>
@@ -191,7 +208,7 @@
           </div>
 <div class="mode-card" data-mode="voltaic_static" id="card-voltaic-static">
             <div>
-              <span class="mode-badge-tag" style="color: var(--val-gold); border-color: var(--val-gold);">⚡ VOLTAIC OFICIAL</span>
+              <span class="mode-badge-tag" style="color: var(--val-gold); border-color: var(--val-gold);">⚡ TREINO DE PRECISÃO</span>
               <h2 class="mode-title">1w6ts STATIC</h2>
               <p class="mode-desc">6 alvos estáticos simultâneos na parede. Treine cadência rítmica, micro-ajuste e combo streak multiplicador até 2.5x!</p>
             </div>
@@ -207,7 +224,7 @@
 <div class="modes-cards" data-skill-category="dynamic">
 <div class="mode-card" data-mode="voltaic_pasu" id="card-voltaic-pasu">
             <div>
-              <span class="mode-badge-tag" style="color: #ff0055; border-color: #ff0055;">⚡ VOLTAIC OFICIAL</span>
+              <span class="mode-badge-tag" style="color: #ff0055; border-color: #ff0055;">⚡ TREINO DE PRECISÃO</span>
               <h2 class="mode-title">PASU DYNAMIC</h2>
               <p class="mode-desc">3 a 5 orbes móveis, distribuídos sem sobreposição e com mudanças de velocidade. Treine antecipação e timing de clique.</p>
             </div>
@@ -223,7 +240,7 @@
 <div class="modes-cards" data-skill-category="micro">
 <div class="mode-card" data-mode="microshot" id="card-microshot">
             <div>
-              <span class="mode-badge-tag">KOVAAKS / PRECISÃO</span>
+              <span class="mode-badge-tag">MICROAJUSTE</span>
               <h2 class="mode-title">MICROSHOT</h2>
               <p class="mode-desc">Alvos ultra-pequenos para calibrar micro-ajustes finos de mira e precisão cirúrgica de primeiro tiro.</p>
             </div>
@@ -250,7 +267,7 @@
           </div>
 <div class="mode-card" data-mode="voltaic_smooth" id="card-voltaic-smooth">
             <div>
-              <span class="mode-badge-tag" style="color: #10b981; border-color: #10b981;">⚡ VOLTAIC BENCHMARK</span>
+              <span class="mode-badge-tag" style="color: #10b981; border-color: #10b981;">⚡ AVALIAÇÃO DE MIRA</span>
               <h2 class="mode-title">SMOOTHBOT 3D</h2>
               <p class="mode-desc">Rastreamento 3D orbital com orbe cinemático esmeralda. Calcule sua taxa de suavidade percentual e elimine tremores no mousepad!</p>
             </div>
@@ -266,7 +283,7 @@
 <div class="modes-cards" data-skill-category="switch">
 <div class="mode-card" data-mode="voltaic_switch" id="card-voltaic-switch">
             <div>
-              <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ VOLTAIC SPEED</span>
+              <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ VELOCIDADE DE TROCA</span>
               <h2 class="mode-title">TARGET SWITCH</h2>
               <p class="mode-desc">3 a 5 alvos em faixas separadas, com mudanças independentes de direção e velocidade. Elimine um e troque imediatamente para o próximo.</p>
             </div>
@@ -372,11 +389,11 @@
             <!-- Playlist 1: Voltaic Benchmark -->
             <div class="playlist-card selected" data-playlist="voltaic_benchmark" id="pl-card-voltaic">
               <div class="pl-header">
-                <span class="mode-badge-tag" style="color: var(--val-cyan); border-color: var(--val-cyan);">⚡ BENCHMARK VOLTAIC</span>
-                <span class="pl-stages-count">5 ETAPAS • OFICIAL</span>
+                <span class="mode-badge-tag" style="color: var(--val-cyan); border-color: var(--val-cyan);">⚡ AVALIAÇÃO DE MIRA</span>
+                <span class="pl-stages-count">5 ETAPAS • 2 MIN 30 S</span>
               </div>
-              <h2 class="mode-title">VOLTAIC BENCHMARK OFICIAL</h2>
-              <p class="mode-desc">A rotina de mira definitiva: 1w6ts Static Clicking, Pasu Dynamic Bouncing, Smoothbot 3D Harmonic Tracking, Pat Target Switch e Angle Angle Hold (fresta).</p>
+              <h2 class="mode-title">AVALIAÇÃO COMPLETA DE MIRA</h2>
+              <p class="mode-desc">Avalie precisão, alvos dinâmicos, tracking, troca de alvos e reação. Cinco exercícios para comparar sua evolução.</p>
               <div class="pl-stages-row">
                 <span class="pl-stage-chip"><span class="chip-num">1</span> 1w6ts Static (30s)</span>
                 <span class="pl-stage-chip"><span class="chip-num">2</span> Pasu Bounce (30s)</span>
@@ -457,7 +474,7 @@
               <h3 id="custom-playlist-import-title">Importar playlists por código</h3>
               <p>Cole o código recebido. Suas playlists atuais serão mantidas; sequências idênticas não serão duplicadas.</p>
               <label for="custom-playlist-import-code">Código recebido</label>
-              <textarea id="custom-playlist-import-code" rows="3" maxlength="131072" spellcheck="false" placeholder="VALPL1.…"></textarea>
+              <textarea id="custom-playlist-import-code" rows="3" maxlength="131072" spellcheck="false" placeholder="Cole aqui o código compartilhado…"></textarea>
               <div class="custom-playlist-actions">
                 <button id="custom-playlist-import-confirm" type="button" class="custom-save">Importar playlists</button>
                 <button id="custom-playlist-import-close" type="button">Cancelar importação</button>
@@ -487,6 +504,7 @@
 
       <!-- Footer & Weapon Selector & Play Button -->
       <div class="lobby-footer">
+        <div class="session-selection"><span class="eyebrow">SEU PRÓXIMO TREINO</span><strong id="selected-task-title">Gridshot</strong><span id="selected-task-detail">Precisão e flicks • Normal</span></div>
         <div class="weapon-select-row">
           <span style="font-family: var(--font-hud); font-weight: 700; color: var(--val-gray); letter-spacing: 1px;">ARMA:</span>
           <button class="weapon-btn active" data-weapon="vandal">VANDAL</button>
@@ -507,7 +525,7 @@
               <span class="config-hero-subtitle">SENS • DPI • MIRA • VFX</span>
             </div>
           </button>
-          <button class="btn-play" id="btn-start-game">JOGAR TREINO</button>
+          <button class="btn-play" id="btn-start-game">Iniciar treino ↗</button>
         </div>
       </div>
     </div>
@@ -521,7 +539,7 @@
               <span class="mode-badge-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--val-cyan); border-color: var(--val-cyan);">CALIBRAÇÃO INICIAL</span>
               <span style="font-family: var(--font-hud); font-size: 0.8rem; color: var(--val-gray); letter-spacing: 1px;">AJUSTE SUAS CONFIGURAÇÕES ANTES DE JOGAR</span>
             </div>
-            <h2>CONFIGURAÇÕES & MIRA DO VALORANT</h2>
+            <h2>Configure seu treino</h2>
           </div>
           <button class="close-modal-btn" id="btn-close-settings" title="Fechar">✕</button>
         </div>
@@ -529,10 +547,10 @@
         <div class="settings-grid">
           <!-- Coluna 1: Sensibilidade & Mouse & FOV -->
           <div class="setting-group">
-            <h3 style="font-family: var(--font-hud); color: var(--val-cyan); letter-spacing: 2px;">CALIBRAÇÃO DE MOUSE & VALORANT</h3>
+            <h3 style="font-family: var(--font-hud); color: var(--val-cyan); letter-spacing: 2px;">MOUSE & CAMPO DE VISÃO</h3>
 
             <div class="setting-row">
-              <span class="setting-label">Sensibilidade no Valorant</span>
+              <span class="setting-label">Sensibilidade da mira</span>
               <div class="setting-input-wrapper">
                 <input type="range" class="setting-slider" id="input-sens-slider" min="0.05" max="2.0" step="0.01" value="0.35" style="width: 140px;" />
                 <input type="number" class="setting-number-box" id="input-sens-num" min="0.01" max="5.0" step="0.005" value="0.35" />
@@ -552,7 +570,7 @@
             </div>
 
             <div class="setting-row">
-              <span class="setting-label">Campo de Visão (FOV Valorant 103°)</span>
+              <span class="setting-label">Campo de visão (padrão: 103°)</span>
               <div class="setting-input-wrapper">
                 <input type="range" class="setting-slider" id="input-fov-slider" min="80" max="115" step="1" value="103" style="width: 140px;" />
                 <span id="label-fov-val" style="font-family: var(--font-hud); font-weight: 700; width: 45px; text-align: right;">103°</span>
@@ -603,7 +621,7 @@
                 <div class="color-dot active" data-color="#00ffff" style="background: #00ffff;" title="Ciano"></div>
                 <div class="color-dot" data-color="#00ff00" style="background: #00ff00;" title="Verde"></div>
                 <div class="color-dot" data-color="#ffff00" style="background: #ffff00;" title="Amarelo"></div>
-                <div class="color-dot" data-color="#ff4655" style="background: #ff4655;" title="Vermelho Valorant"></div>
+                <div class="color-dot" data-color="#ff4655" style="background: #ff4655;" title="Vermelho"></div>
                 <div class="color-dot" data-color="#ffffff" style="background: #ffffff;" title="Branco"></div>
                 <div class="color-dot" data-color="#ff00ff" style="background: #ff00ff;" title="Rosa"></div>
               </div>
@@ -650,9 +668,9 @@
         <div class="modal-footer">
           <div class="save-status-indicator">
             <span class="save-dot"></span>
-            <span id="save-status-text">CONFIGURAÇÕES SALVAS (LOCALSTORAGE)</span>
+            <span id="save-status-text">Preferências salvas neste dispositivo</span>
           </div>
-          <button class="btn-play" id="btn-save-confirm-settings" style="padding: 12px 36px; font-size: 1.15rem; letter-spacing: 1px;">CONFIRMAR & IR AO LOBBY</button>
+          <button class="btn-play" id="btn-save-confirm-settings" style="padding: 12px 36px; font-size: 1.15rem; letter-spacing: 1px;">Concluir ajustes</button>
         </div>
       </div>
     </div>
@@ -711,7 +729,7 @@
         <div class="modal-header">
           <div>
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
-              <span class="mode-badge-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--val-cyan); border-color: var(--val-cyan);">VOLTAIC AIM LAB BENCHMARKS</span>
+              <span class="mode-badge-tag" style="background: rgba(0, 240, 255, 0.15); color: var(--val-cyan); border-color: var(--val-cyan);">KINETIC / DESEMPENHO</span>
               <span style="font-family: var(--font-hud); font-size: 0.8rem; color: var(--val-gray); letter-spacing: 1px;">SISTEMA DE PROGRESSÃO & RANKING</span>
             </div>
             <h2>CENTRAL DE DESEMPENHO DO JOGADOR</h2>
@@ -725,8 +743,8 @@
             <span class="voltaic-badge-icon" id="perf-rank-badge">💎</span>
           </div>
           <div class="voltaic-rank-details">
-            <div class="voltaic-rank-tier" id="perf-rank-title">RANK VOLTAIC: DIAMANTE II</div>
-            <div class="voltaic-rank-subtitle">AVALIAÇÃO OFICIAL DE MIRA VOLTAIC X VALORANT</div>
+            <div class="voltaic-rank-tier" id="perf-rank-title">SEU NÍVEL: DIAMANTE II</div>
+            <div class="voltaic-rank-subtitle">Sua evolução, sessão após sessão</div>
             <div class="voltaic-progress-wrap">
               <div class="voltaic-progress-bar">
                 <div class="voltaic-progress-fill" id="perf-rank-progress-fill" style="width: 65%;"></div>
@@ -763,7 +781,7 @@
             <div class="perf-stat-val" id="perf-retakes-won" style="color: var(--val-red);">0</div>
           </div>
           <div class="perf-stat-card">
-            <div class="perf-stat-label">ROTINAS VOLTAIC</div>
+            <div class="perf-stat-label">ROTINAS CONCLUÍDAS</div>
             <div class="perf-stat-val" id="perf-playlists-completed" style="color: #c084fc;">0</div>
           </div>
         </div>
@@ -805,17 +823,17 @@
       <div class="modal-content playlist-report-content" style="position: relative;">
         <button class="close-modal-btn" id="btn-close-pl-report" title="Voltar ao Menu Principal" style="position: absolute; top: 16px; right: 20px;">✕</button>
         <div class="report-header-banner">
-          <span class="pl-badge" id="pl-report-badge">VOLTAIC BENCHMARK</span>
+          <span class="pl-badge" id="pl-report-badge">AVALIAÇÃO DE MIRA</span>
           <h1 class="report-banner victory" id="pl-report-title">PLAYLIST COMPLETA!</h1>
-          <div class="report-submessage" id="pl-report-subtitle">ROTINA VOLTAIC CONCLUÍDA COM SUCESSO</div>
+          <div class="report-submessage" id="pl-report-subtitle">ROTINA CONCLUÍDA</div>
         </div>
 
         <!-- Awarded Rank Card -->
         <div class="pl-rank-award-box">
           <span class="pl-rank-award-icon" id="pl-award-icon">💎</span>
           <div>
-            <div class="pl-rank-award-title" id="pl-award-tier">DESEMPENHO: DIAMANTE // VOLTAIC AIMER</div>
-            <div class="pl-rank-award-desc" id="pl-award-desc">+650 PONTOS VOLTAIC ADICIONADOS À CARREIRA</div>
+            <div class="pl-rank-award-title" id="pl-award-tier">DESEMPENHO: DIAMANTE // PRECISÃO</div>
+            <div class="pl-rank-award-desc" id="pl-award-desc">+650 PONTOS DE EVOLUÇÃO ADICIONADOS À CARREIRA</div>
           </div>
         </div>
 
