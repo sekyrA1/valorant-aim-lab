@@ -77,10 +77,37 @@ for (const difficulty of Object.values(DIFFICULTIES)) {
   }
   assert(!failed, 'wave stays active until deadline');
   assert.equal(manager.enemies.length, 4 + difficulty.extraTargets);
-  assert(manager.enemies.every(enemy => enemy.phase === 'hunt'), `Jett and followers leave smoke to hunt: ${difficulty.label} ${JSON.stringify(manager.enemies.map(enemy => ({ label: enemy.bot.label, phase: enemy.phase, position: enemy.bot.group.position.toArray() })))}`);
+  assert(manager.enemies.every(enemy => !['dash', 'smokeHold'].includes(enemy.phase)), 'attackers finish the dash and can engage from entry or search angles');
   assert(damage > 0, 'visible attackers pressure the defender');
   manager.clearAll();
 }
+let engagementDamage = 0;
+const search = new AntiRushManager(scene, bots, sound);
+search.start(player, DIFFICULTIES.normal, map.colliders, { onDamage: value => { engagementDamage += value; } });
+search.spawnEnemy('OMEN', 1);
+const seeker = search.enemies[0];
+seeker.phase = 'hunt';
+seeker.bot.group.position.set(0, 0, 0);
+search.canSee = () => false;
+const playerBefore = player.position.clone();
+player.position.set(8, 1.7, -3);
+search.updateEnemy(seeker, .1);
+const firstMove = seeker.bot.group.position.clone();
+const firstPath = seeker.path.map(point => point.toArray());
+seeker.bot.group.position.set(0, 0, 0);
+seeker.pathTimer = 0;
+player.position.set(-8, 1.7, -12);
+search.updateEnemy(seeker, .1);
+assert.deepEqual(seeker.bot.group.position.toArray(), firstMove.toArray(), 'hidden player position does not steer the search');
+assert.deepEqual(seeker.path.map(point => point.toArray()), firstPath, 'search route is independent of hidden player movement');
+search.canSee = () => true;
+const firingPosition = seeker.bot.group.position.clone();
+seeker.fireTimer = 0;
+search.updateEnemy(seeker, 1);
+assert.deepEqual(seeker.bot.group.position.toArray(), firingPosition.toArray(), 'enemy stops moving when seeing the player');
+assert(engagementDamage > 0, 'stationary visible enemy still fires');
+player.position.copy(playerBefore);
+search.clearAll();
 let perfectWaves = 0;
 const perfectDefense = new AntiRushManager(scene, bots, sound);
 perfectDefense.start(player, DIFFICULTIES.normal, map.colliders, {

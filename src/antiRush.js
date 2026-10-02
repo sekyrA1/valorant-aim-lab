@@ -208,7 +208,11 @@ export class AntiRushManager {
       bun.position.set(0, 1.88, -.08);
       bot.group.add(bun);
     }
+    const side = dash ? Math.sign(this.jettLanding.x) || 1 : lane;
+    const searchRoute = [[side * 8, -2], [side * 10, -11], [0, -18],
+      [-side * 9, -12], [-side * 10, -2], [0, 2]].map(([x, z]) => new THREE.Vector3(x, 0, z));
     this.enemies.push({ bot, phase: dash ? 'dash' : 'entry', path: [], pathTimer: 0, fireTimer: .7,
+      searchRoute, searchIndex: 0, searchWait: .65,
       destination: this.jettLanding.clone(),
       exitDestination: new THREE.Vector3(lane * (4 + Math.random() * 3), 0, 1),
       holdTimer: .4 + Math.random() * .4, gait: 0, reaction: 0 });
@@ -333,13 +337,44 @@ export class AntiRushManager {
       return;
     }
     bot.torsoMesh.rotation.x = 0;
+    const eye = p.clone().add(new THREE.Vector3(0, 1.55, 0));
+    const visible = this.canSee(eye, this.player.position);
+    enemy.fireTimer -= dt;
+    if (visible) {
+      // Once the defender is visible, hold the angle and fire instead of closing the distance.
+      enemy.reaction += dt;
+      enemy.pathTimer = 0;
+      bot.leftLeg.rotation.x = 0;
+      bot.rightLeg.rotation.x = 0;
+      bot.group.rotation.y = Math.atan2(this.player.position.x - p.x, this.player.position.z - p.z);
+      const reaction = .55 * this.difficulty.reaction * (this.revealedLeft > 0 ? .65 : 1);
+      if (enemy.reaction >= reaction && enemy.fireTimer <= 0) {
+        enemy.fireTimer = (.75 + Math.random() * .4) * this.difficulty.botFireRate;
+        this.sound.playGunfire('phantom');
+        this.callbacks.onDamage?.(Math.round((8 + Math.random() * 5) * this.difficulty.botDamage));
+      }
+      return;
+    }
+    enemy.reaction = 0;
     if (enemy.phase === 'smokeHold') {
       enemy.holdTimer -= dt;
       if (enemy.holdTimer <= 0) enemy.phase = 'hunt';
       return;
     }
     const target = enemy.phase === 'entry' ? enemy.destination :
-      enemy.phase === 'exit' ? enemy.exitDestination : this.player.position;
+      enemy.phase === 'exit' ? enemy.exitDestination : enemy.searchRoute[enemy.searchIndex];
+    if (enemy.phase === 'hunt' && Math.hypot(p.x - target.x, p.z - target.z) < 1) {
+      enemy.searchWait -= dt;
+      bot.leftLeg.rotation.x = 0;
+      bot.rightLeg.rotation.x = 0;
+      bot.group.rotation.y += dt * 1.8;
+      if (enemy.searchWait <= 0) {
+        enemy.searchIndex = (enemy.searchIndex + 1) % enemy.searchRoute.length;
+        enemy.searchWait = .65;
+        enemy.pathTimer = 0;
+      }
+      return;
+    }
     enemy.pathTimer -= dt;
     if (enemy.pathTimer <= 0) {
       enemy.path = findRushPath(p, target, this.colliders);
@@ -364,17 +399,6 @@ export class AntiRushManager {
     }
     if (enemy.phase === 'entry' && p.distanceTo(enemy.destination) < 1.2) { enemy.phase = 'exit'; enemy.pathTimer = 0; }
     if (enemy.phase === 'exit' && p.distanceTo(enemy.exitDestination) < 1.4) { enemy.phase = 'hunt'; enemy.pathTimer = 0; }
-    const eye = p.clone().add(new THREE.Vector3(0, 1.55, 0));
-    const visible = this.canSee(eye, this.player.position);
-    enemy.reaction = visible ? enemy.reaction + dt : 0;
-    enemy.fireTimer -= dt;
-    const reaction = .55 * this.difficulty.reaction * (this.revealedLeft > 0 ? .65 : 1);
-    if (visible && enemy.reaction >= reaction && enemy.fireTimer <= 0) {
-      enemy.fireTimer = (.75 + Math.random() * .4) * this.difficulty.botFireRate;
-      bot.group.rotation.y = Math.atan2(this.player.position.x - p.x, this.player.position.z - p.z);
-      this.sound.playGunfire('phantom');
-      this.callbacks.onDamage?.(Math.round((8 + Math.random() * 5) * this.difficulty.botDamage));
-    }
   }
 
   update(dt) {
