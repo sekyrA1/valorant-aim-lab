@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 
 const SPAWN_HALF_ANGLE = Math.PI / 4;
-const DRONE_RADIUS = 0.82;
-const DRONE_SCALE = 0.45;
-const FIRST_SHOT_DELAY_MIN = 0.12;
-const FIRST_SHOT_DELAY_MAX = 0.32;
+const DRONE_SHOTS_TO_KILL = 2;
+const MIN_DRONE_SPAWN_SEPARATION = 1.5;
 
 export class DroneManager {
   constructor(scene) {
@@ -20,6 +18,8 @@ export class DroneManager {
     this.tmpDirection = new THREE.Vector3();
     this.tmpPoint = new THREE.Vector3();
     this.tmpRay = new THREE.Ray();
+    this.tmpRaycaster = new THREE.Raycaster();
+    this.tmpDroneIntersections = [];
     this.tmpBox = new THREE.Box3();
     this.tmpHit = new THREE.Vector3();
     this.tmpLine = new THREE.Line3();
@@ -82,7 +82,10 @@ export class DroneManager {
     this.elapsed = 0;
     this.difficulty = difficulty;
     this.spawnTimer = 1.5;
-    this.spawnDrone(player, colliders);
+    const initialDroneCount = this.getMaxDrones(difficulty);
+    for (let i = 0; i < initialDroneCount; i++) {
+      this.spawnDrone(player, colliders);
+    }
   }
 
   clearAll() {
@@ -153,6 +156,9 @@ export class DroneManager {
       if (position.x < -15.8 || position.x > 15.8 ||
           position.z < -13.8 || position.z > 17.8) continue;
       if (colliders.some(collider => this.pointOverlapsCollider(position, collider, 0.85))) continue;
+      if (this.drones.some(drone =>
+        position.distanceToSquared(drone.group.position) < MIN_DRONE_SPAWN_SEPARATION ** 2
+      )) continue;
       found = true;
       break;
     }
@@ -166,18 +172,18 @@ export class DroneManager {
     const difficultySpeed = this.difficulty?.speed ?? 1;
     const moveDirection = this.randomMoveDirection();
     const velocity = moveDirection.multiplyScalar((2.7 + Math.random() * 1.0) * difficultySpeed);
-    visual.group.scale.setScalar(DRONE_SCALE);
+    visual.group.scale.setScalar(this.difficulty?.droneScale ?? 0.35);
+    const firstShotMin = this.difficulty?.droneFirstShotMin ?? 0.14;
+    const firstShotMax = this.difficulty?.droneFirstShotMax ?? 0.3;
     const drone = {
       ...visual,
       type: 'drone',
       isDead: false,
-      health: 100,
-      maxHealth: 100,
+      shotsRemaining: DRONE_SHOTS_TO_KILL,
       velocity,
       desiredVelocity: velocity.clone(),
       directionTimer: 0.35 + Math.random() * 0.65,
-      fireCooldown: FIRST_SHOT_DELAY_MIN +
-        Math.random() * (FIRST_SHOT_DELAY_MAX - FIRST_SHOT_DELAY_MIN),
+      fireCooldown: firstShotMin + Math.random() * (firstShotMax - firstShotMin),
       charging: false,
       chargeLeft: 0,
       chargeDuration: 0,
@@ -212,7 +218,7 @@ export class DroneManager {
     this.warningCallback = onWarning;
 
     this.drones = this.drones.filter(drone => !drone.isDead);
-    const maxDrones = difficulty.extraTargets < 0 ? 2 : (difficulty.extraTargets > 0 ? 4 : 3);
+    const maxDrones = this.getMaxDrones(difficulty);
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0 && this.drones.length < maxDrones) {
       this.spawnDrone(player, colliders);
@@ -226,6 +232,10 @@ export class DroneManager {
       this.updateDrone(drone, dt, player, difficulty, forward);
     }
     this.updateProjectiles(dt, player, colliders, difficulty);
+  }
+
+  getMaxDrones(difficulty) {
+    return THREE.MathUtils.clamp(Math.round(difficulty?.droneCount ?? 2), 2, 3);
   }
 
   updateDrone(drone, dt, player, difficulty, playerForward) {
@@ -374,25 +384,25 @@ export class DroneManager {
   }
 
   raycastBullet(origin, direction, maxRange) {
-    const rayDirection = direction.clone().normalize();
+    this.tmpRaycaster.set(origin, direction.clone().normalize());
+    this.tmpRaycaster.near = 0;
+    this.tmpRaycaster.far = maxRange;
     let closest = null;
     for (const drone of this.drones) {
       if (drone.isDead) continue;
-      const toDrone = this.tmpPoint.subVectors(drone.group.position, origin);
-      const distance = toDrone.dot(rayDirection);
-      if (distance < 0 || distance > maxRange) continue;
-      const pointOnRay = this.tmpPoint.copy(origin).addScaledVector(rayDirection, distance);
-      const radius = DRONE_RADIUS * drone.group.scale.x;
-      if (pointOnRay.distanceToSquared(drone.group.position) > radius * radius) continue;
-      if (closest && distance >= closest.distance) continue;
-
-      const point = pointOnRay.clone();
-      const eyePosition = drone.eye.getWorldPosition(new THREE.Vector3());
+      this.tmpDroneIntersections.length = 0;
+      const intersections = this.tmpRaycaster.intersectObject(
+        drone.group,
+        true,
+        this.tmpDroneIntersections
+      );
+      const hit = intersections[0];
+      if (!hit || (closest && hit.distance >= closest.distance)) continue;
       closest = {
         bot: drone,
-        point,
-        distance,
-        zone: point.distanceTo(eyePosition) <= 0.2 ? 'head' : 'body'
+        point: hit.point.clone(),
+        distance: hit.distance,
+        zone: hit.object === drone.eye ? 'head' : 'body'
       };
     }
     return closest;
@@ -401,8 +411,8 @@ export class DroneManager {
   applyHit(drone, zone, damage) {
     if (!drone || drone.isDead) return null;
     const isHeadshot = zone === 'head';
-    drone.health -= Math.max(0, damage || 0) * (isHeadshot ? 2 : 1);
-    if (drone.health > 0) return { isKilled: false, isHeadshot };
+    drone.shotsRemaining = Math.max(0, drone.shotsRemaining - 1);
+    if (drone.shotsRemaining > 0) return { isKilled: false, isHeadshot };
 
     drone.isDead = true;
     this.removeDroneVisuals(drone);
