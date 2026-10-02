@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ADS_PROFILES } from './ads.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { ProceduralArms, reloadMotion } from './armsIK.js';
@@ -246,7 +247,7 @@ export const WEAPON_TYPES = {
     category: 'Rifle',
     magSize: 25,
     reserveAmmo: Infinity,
-    fireRateMs: 105, // ~9.5 rounds/sec
+    fireRateMs: 1000 / 9.75,
     damage: { head: 160, body: 40, legs: 34 },
     firstShotSpread: 0.001,
     movingSpread: 0.065,
@@ -278,7 +279,7 @@ export const WEAPON_TYPES = {
     category: 'Rifle',
     magSize: 30,
     reserveAmmo: Infinity,
-    fireRateMs: 91, // 11 rounds/sec
+    fireRateMs: 1000 / 11,
     damage: { head: 156, body: 39, legs: 33 },
     firstShotSpread: 0.0008,
     movingSpread: 0.05,
@@ -310,7 +311,7 @@ export const WEAPON_TYPES = {
     category: 'DMR',
     magSize: 12,
     reserveAmmo: Infinity,
-    fireRateMs: 190, // Semi-auto high caliber
+    fireRateMs: 1000 / 5.25, // Semi-auto high caliber
     damage: { head: 195, body: 65, legs: 49 },
     firstShotSpread: 0.0, // 100% pinpoint first shot (Valorant Guardian)
     movingSpread: 0.07,
@@ -342,7 +343,7 @@ export const WEAPON_TYPES = {
     category: 'SMG',
     magSize: 30,
     reserveAmmo: Infinity,
-    fireRateMs: 75, // 13.3 rounds/sec
+    fireRateMs: 1000 / 13.33,
     damage: { head: 78, body: 26, legs: 22 },
     firstShotSpread: 0.0015,
     movingSpread: 0.035, // Great run and gun mobility
@@ -509,6 +510,9 @@ export class WeaponManager {
     this.timeSinceLastShot = 999;
     this.isReloading = false;
     this.isScoping = false;
+    this.isAiming = false;
+    this.aimBlend = 0;
+    this.aimZoom = 1;
 
     // Slots state
     this.equippedSlots = {
@@ -562,6 +566,7 @@ export class WeaponManager {
 
   setWeapon(weaponId) {
     if (!WEAPON_TYPES[weaponId]) return;
+    this.setAiming(false, true);
     const w = WEAPON_TYPES[weaponId];
     this.currentWeaponType = w;
     this.equippedSlots[w.slot] = w;
@@ -1057,7 +1062,7 @@ export class WeaponManager {
       this.reload();
       return null;
     }
-    if (now - this.lastShotTime < type.fireRateMs) {
+    if (now - this.lastShotTime < this.getFireInterval()) {
       return null;
     }
 
@@ -1159,22 +1164,40 @@ export class WeaponManager {
       return;
     }
     this.isReloading = true;
+    this.setAiming(false);
     this.reloadTimer = 0;
     this.soundManager.playReload();
   }
 
-  setScope(isScoped) {
-    if (this.currentWeaponType.id !== 'operator') return;
-    this.isScoping = isScoped;
-    if (this.armsGroup) this.armsGroup.visible = !isScoped;
-    if (this.gunMesh) {
-      this.gunMesh.visible = !isScoped;
+  setAiming(enabled, immediate = false) {
+    const profile = ADS_PROFILES[this.currentWeaponType.id];
+    this.isAiming = !!(enabled && profile && !this.isReloading);
+    this.isScoping = !!(this.isAiming && profile.scoped);
+    if (immediate) {
+      this.aimBlend = this.isAiming ? 1 : 0;
+      this.aimZoom = this.isAiming ? profile.zoom : 1;
     }
+    if (this.armsGroup) this.armsGroup.visible = !this.isScoping;
+    if (this.gunMesh) this.gunMesh.visible = !this.isScoping;
+    return this.isAiming;
+  }
+
+  setScope(enabled) {
+    if (this.currentWeaponType.id === 'operator') this.setAiming(enabled);
+  }
+
+  getFireInterval() {
+    const multiplier = this.isAiming ? ADS_PROFILES[this.currentWeaponType.id]?.fireRateMultiplier : 1;
+    return this.currentWeaponType.fireRateMs / (multiplier || 1);
   }
 
   // Update viewmodel animations every frame
   update(dt, playerSpeed, isGrounded) {
     const profile = VIEWMODEL_PROFILES[this.currentWeaponType.id];
+    const ads = ADS_PROFILES[this.currentWeaponType.id];
+    this.aimBlend += ((this.isAiming ? 1 : 0) - this.aimBlend) * (1 - Math.exp(-dt * 22));
+    if (Math.abs(this.aimBlend - (this.isAiming ? 1 : 0)) < .001) this.aimBlend = this.isAiming ? 1 : 0;
+    this.aimZoom = 1 + ((ads?.zoom || 1) - 1) * this.aimBlend;
     this.equipTimer += dt;
     this.shotTimer += dt;
     if (this.isReloading || this.isInspecting) {
@@ -1281,14 +1304,17 @@ export class WeaponManager {
     }
 
     // Weapon-specific procedural kick impulses
-    const vmPunch = (this.currentWeaponType.viewmodelPunch || profile.shot) * shot;
-    const vmFlip = (this.currentWeaponType.viewmodelFlip || profile.shotAngle) * shot;
-    const vmRoll = (this.currentWeaponType.viewmodelRoll || 0.015) * shot;
+    const stability = 1 - .85 * this.aimBlend;
+    const vmPunch = (this.currentWeaponType.viewmodelPunch || profile.shot) * shot * (1 - .6 * this.aimBlend);
+    const vmFlip = (this.currentWeaponType.viewmodelFlip || profile.shotAngle) * shot * (1 - .75 * this.aimBlend);
+    const vmRoll = (this.currentWeaponType.viewmodelRoll || 0.015) * shot * stability;
 
     // Equip (pull), shot impulse, reload and knife flourish layer over idle.
-    const targetX = this.basePos.x + this.swayCurrent.x + bobX + slashOffsetX
-      + .09 * pull - .025 * shot;
-    const targetY = this.basePos.y + this.swayCurrent.y - bobY + slashOffsetY
+    // The iron sight axis is centered on the camera; IK follows the moved grips.
+    const targetX = this.basePos.x * (1 - this.aimBlend) + (this.swayCurrent.x + bobX) * stability + slashOffsetX
+      + .09 * pull - .025 * shot * stability;
+    const targetY = THREE.MathUtils.lerp(this.basePos.y, -(ads?.sightY || .121), this.aimBlend)
+      + (this.swayCurrent.y - bobY) * stability + slashOffsetY
       - .32 * pull - profile.reloadDrop * reloadEnvelope - vmPunch * 0.35;
     const targetZ = this.basePos.z + .08 * pull + vmPunch;
 
@@ -1297,11 +1323,11 @@ export class WeaponManager {
     this.currentPos.y += (targetY - this.currentPos.y) * blend;
     this.currentPos.z += (targetZ - this.currentPos.z) * blend;
 
-    const targetRotX = this.baseRot.x - this.swayCurrent.y * 1.2
+    const targetRotX = this.baseRot.x - this.swayCurrent.y * 1.2 * stability
       + vmFlip + .23 * pull;
-    const targetRotY = this.baseRot.y + this.swayCurrent.x * 1.2 + slashRotY
+    const targetRotY = this.baseRot.y + this.swayCurrent.x * 1.2 * stability + slashRotY
       + .18 * pull + 1.2 * inspectSpin;
-    const targetRotZ = this.baseRot.z + this.swayCurrent.x * .8 + slashRotZ
+    const targetRotZ = this.baseRot.z + this.swayCurrent.x * .8 * stability + slashRotZ
       - .42 * pull + profile.reloadTilt * reloadEnvelope + .28 * inspectSpin + vmRoll;
 
     this.currentRot.x += (targetRotX - this.currentRot.x) * blend;

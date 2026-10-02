@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { verticalFov } from './ads.js';
 
 export class PlayerController {
   constructor(camera, domElement, soundManager) {
@@ -38,6 +39,7 @@ export class PlayerController {
     this.valorantSens = 0.35;
     this.dpi = 800;
     this.fov = 103; // Horizontal FOV in 16:9
+    this.aimZoom = 1;
     this.loadSettings();
 
     // Input state
@@ -110,12 +112,15 @@ export class PlayerController {
   }
 
   updateCameraFov() {
-    // Convert horizontal FOV (16:9) to vertical FOV for Three.js camera
     const aspect = window.innerWidth / window.innerHeight;
-    const hFovRad = (this.fov * Math.PI) / 180;
-    const vFovRad = 2 * Math.atan(Math.tan(hFovRad / 2) / aspect);
-    this.camera.fov = (vFovRad * 180) / Math.PI;
+    this.camera.fov = verticalFov(this.fov, aspect, this.aimZoom);
     this.camera.updateProjectionMatrix();
+  }
+
+  setAimZoom(zoom) {
+    if (this.aimZoom === zoom) return;
+    this.aimZoom = zoom;
+    this.updateCameraFov();
   }
 
   requestPointerLock() {
@@ -218,7 +223,7 @@ export class PlayerController {
 
     // Authentic Valorant sensitivity conversion
     // Valorant uses a factor of 0.07 degrees per count * sens
-    const degreesPerCount = this.valorantSens * (this.trainingSensitivity || 1) * 0.07;
+    const degreesPerCount = this.valorantSens * (this.trainingSensitivity || 1) * 0.07 / (this.aimZoom || 1);
     const radiansPerCount = (degreesPerCount * Math.PI) / 180;
 
     this.pendingMousePitch += movementY * radiansPerCount;
@@ -314,6 +319,7 @@ export class PlayerController {
     } else if (this.isWalking) {
       targetMaxSpeed = this.WALK_SPEED;
     }
+    if (weaponManager?.isAiming) targetMaxSpeed *= .76;
 
     // Landing slowdown recovery
     if (this.landingSlowdownTimer > 0) {
@@ -473,6 +479,7 @@ export class PlayerController {
     // 9. Update weapon viewmodel
     if (weaponManager) {
       weaponManager.update(dt, horizSpeed, this.isGrounded);
+      this.setAimZoom(weaponManager.aimZoom ?? 1);
     }
   }
 

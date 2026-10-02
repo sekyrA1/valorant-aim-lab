@@ -76,6 +76,7 @@ const hudHealthBar = document.getElementById('hud-health-bar');
 const hudShield = document.getElementById('hud-shield');
 const hudShieldBar = document.getElementById('hud-shield-bar');
 const hudWeaponName = document.getElementById('hud-weapon-name');
+const hudAimStatus = document.getElementById('hud-aim-status');
 const hudAmmo = document.getElementById('hud-ammo');
 const hudReserve = document.getElementById('hud-reserve');
 const hudReloadPrompt = document.getElementById('hud-reload-prompt');
@@ -88,7 +89,6 @@ let selectedMode = MODES.HOLD_PIXEL;
 let selectedPlaylistId = 'voltaic_benchmark';
 let activeLobbyTab = 'modes';
 let isMouseDown = false;
-let isRightMouseDown = false;
 let killBannerTimeout = null;
 let stageTransitionTimeout = null;
 
@@ -104,6 +104,7 @@ const gameModeManager = new GameModeManager(
   soundManager,
   {
     onModeStarted: (mode) => {
+      resetADS();
       const modeTitles = {
         [MODES.RETAKE]: 'RETAKE - ASCENT A',
         [MODES.GRIDSHOT]: 'GRIDSHOT',
@@ -128,7 +129,7 @@ const gameModeManager = new GameModeManager(
       hudControls.innerHTML = isSkillMode(mode)
         ? (gameModeManager.skillTaskManager.isAutomatic()
           ? '[MOUSE] Acompanhar • [WASD] Mover • [ESC] Menu'
-          : '[MOUSE] Mirar • [CLIQUE] Atirar • [WASD] Mover • [ESC] Menu')
+          : '[MOUSE] Mirar • [CLIQUE] Atirar • [B.DIR] ADS • [WASD] Mover • [ESC] Menu')
         : standardControls;
       hudScore.innerText = 'SCORE: 0';
       hudHealth.innerText = '100';
@@ -235,6 +236,7 @@ const gameModeManager = new GameModeManager(
       document.getElementById('cognitive-stats').textContent = `${data.hits} corretas • ${data.misses} erradas/perdidas`;
     },
     onGameOver: (summary) => {
+      resetADS();
       document.getElementById('cognitive-stimulus').hidden = true;
       const lessonResult = trainingAcademy.record(summary);
       document.getElementById('report-learning-feedback').textContent = lessonResult
@@ -361,6 +363,7 @@ const gameModeManager = new GameModeManager(
     },
 
     onPlaylistCompleted: (playlist, summary) => {
+      resetADS();
       document.getElementById('cognitive-stimulus').hidden = true;
       for (const stage of summary.stages) trainingAcademy.record(stage);
       refreshDifficultyUI();
@@ -422,13 +425,15 @@ function updateAmmoUI() {
 }
 
 // Switch weapon slot (1: Primary, 2: Secondary, 3: Knife)
+function resetADS() {
+  weaponManager.setAiming(false, true);
+  playerController.setAimZoom(1);
+  sniperScope.style.display = 'none';
+  hudAimStatus.hidden = true;
+}
+
 function switchWeaponSlot(slotNumber) {
-  if (isRightMouseDown && weaponManager.currentWeaponType.id === 'operator') {
-    isRightMouseDown = false;
-    weaponManager.setScope(false);
-    sniperScope.style.display = 'none';
-    playerController.updateCameraFov();
-  }
+  resetADS();
   const switched = weaponManager.switchToSlot(slotNumber);
   if (switched) {
     updateAmmoUI();
@@ -441,6 +446,10 @@ function switchWeaponSlot(slotNumber) {
 
 // Calculate realistic muzzle world position for tracer beams and smoke
 function getWeaponBarrelWorldPosition() {
+  if (weaponManager.muzzleLight) {
+    weaponManager.muzzleLight.updateWorldMatrix(true, false);
+    return weaponManager.muzzleLight.getWorldPosition(new THREE.Vector3());
+  }
   const barrelPos = new THREE.Vector3();
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
@@ -652,18 +661,8 @@ window.addEventListener('mousedown', (e) => {
     e.preventDefault();
     if (playerController.isPointerLocked) {
       const wId = weaponManager.currentWeaponType.id;
-      if (wId === 'operator') {
-        // Toggle Operator ADS Scope
-        isRightMouseDown = !isRightMouseDown;
-        weaponManager.setScope(isRightMouseDown);
-        if (isRightMouseDown) {
-          sniperScope.style.display = 'block';
-          camera.fov = 30; // 3x Zoom
-          camera.updateProjectionMatrix();
-        } else {
-          sniperScope.style.display = 'none';
-          playerController.updateCameraFov();
-        }
+      if (weaponManager.currentWeaponType.slot === 1) {
+        weaponManager.setAiming(!weaponManager.isAiming);
       } else if (wId === 'classic') {
         // Classic 3-shot burst
         performClassicBurst();
@@ -679,6 +678,11 @@ window.addEventListener('mouseup', (e) => {
   if (e.button === 0) {
     isMouseDown = false;
   }
+});
+
+window.addEventListener('blur', () => {
+  isMouseDown = false;
+  resetADS();
 });
 
 // Prevent right click context menu in game
@@ -712,6 +716,8 @@ let lastPauseToggleTime = 0;
 function setGamePaused(paused) {
   lastPauseToggleTime = performance.now();
   if (paused) {
+    resetADS();
+    isMouseDown = false;
     pauseScreen.classList.add('active');
     if (document.pointerLockElement) {
       document.exitPointerLock();
@@ -726,6 +732,10 @@ function setGamePaused(paused) {
 document.addEventListener('pointerlockchange', () => {
   const isLocked = document.pointerLockElement === renderer.domElement;
   playerController.isPointerLocked = isLocked;
+  if (!isLocked) {
+    resetADS();
+    isMouseDown = false;
+  }
 
   const plReportModal = document.getElementById('playlist-report-modal');
   const isPlReportOpen = plReportModal && plReportModal.classList.contains('active');
@@ -829,6 +839,7 @@ weaponButtons.forEach(btn => {
     weaponButtons.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const wId = btn.getAttribute('data-weapon');
+    resetADS();
     weaponManager.setWeapon(wId);
     updateAmmoUI();
     savePlayerConfig({ weapon: wId });
@@ -903,6 +914,7 @@ document.getElementById('btn-pause-settings').addEventListener('click', () => {
 });
 
 document.getElementById('btn-pause-lobby').addEventListener('click', () => {
+  resetADS();
   soundManager.playUIClick();
   document.getElementById('cognitive-stimulus').hidden = true;
   gameModeManager.isRunning = false;
@@ -1488,6 +1500,7 @@ const btnCloseSettings = document.getElementById('btn-close-settings');
 const btnSaveConfirmSettings = document.getElementById('btn-save-confirm-settings');
 
 function openSettingsModal() {
+  resetADS();
   soundManager.init();
   soundManager.playUIClick();
   settingsModal.classList.add('active');
@@ -1884,7 +1897,10 @@ function animate() {
     ? weaponManager.getFiringErrorRatio()
     : weaponManager.recoilAmount;
 
-  hudCrosshair.canvas.style.visibility = playerController.trainingNoCrosshair ? 'hidden' : 'visible';
+  sniperScope.style.display = weaponManager.isScoping ? 'block' : 'none';
+  hudAimStatus.hidden = !weaponManager.isAiming;
+  if (weaponManager.isAiming) hudAimStatus.textContent = `ADS • ${weaponManager.aimZoom.toFixed(2).replace('.', ',')}×`;
+  hudCrosshair.canvas.style.visibility = (playerController.trainingNoCrosshair || weaponManager.isScoping) ? 'hidden' : 'visible';
   hudCrosshair.render(moveErrorAmount, firingErrorAmount);
 
   // Render Settings preview crosshair if open

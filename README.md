@@ -118,10 +118,11 @@ Fiel ao gráfico oficial de Erro de Disparo do Valorant:
   - **Spectre**: Submetralhadora silenciada de altíssima cadência (13.3 tiros/s) e excelente precisão em movimento.
   - **Classic**: 12 tiros, semi-automático no botão esquerdo e **rajada de 3 tiros no botão direito**!
   - **Sheriff**: Revólver pesado de alto impacto (159 de dano na cabeça).
-  - **Operator**: Sniper pesado com Scope ADS (zoom 3x e mira telescópica).
+  - **Operator**: Sniper pesado com Scope ADS (zoom 2,5x e mira telescópica).
   - **Faca Tática**: Corte rápido no botão esquerdo, estocada no botão direito e **+5% de velocidade de movimento** ao correr com ela em mãos.
 - **Troca Rápida de Slots**:
   - `[1]`: Primária | `[2]`: Secundária | `[3]`: Faca Tática.
+- **ADS das primárias**: o botão direito alterna a mira. Vandal, Phantom e Spectre usam zoom 1,25x e 90% da cadência normal; Guardian usa 1,5x sem penalidade de cadência. O zoom respeita o FOV configurado e o tamanho da tela. A arma centraliza com braços via IK, reduz bob/sway e mantém erro de movimento. Movimento em ADS a 76% da velocidade e sensibilidade proporcional ao zoom. Recarga, troca de arma, pausa e fim da task retiram o ADS.
 
 ---
 

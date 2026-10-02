@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR"><meta charset="utf-8"><title>ADS — inspeção visual</title>
+<style>body{margin:0;background:#111a20;color:#eee;font:14px system-ui}nav{position:fixed;top:15px;left:15px;z-index:2;display:flex;gap:8px}button,select{padding:10px;background:#182a32;color:white;border:1px solid #607481;border-radius:8px}#info{position:fixed;bottom:18px;left:18px}#cross{position:fixed;left:50%;top:50%;width:4px;height:4px;background:#a9ff69;transform:translate(-50%,-50%)}canvas{display:block}</style>
+<nav><select id="weapon"><option>vandal</option><option>phantom</option><option>guardian</option><option>spectre</option><option>operator</option><option>classic</option></select><button id="aim">Alternar ADS</button><button id="fire">Disparar</button><button id="reload">Recarregar</button></nav><div id="info"></div><div id="cross"></div>
+<script type="module">
+import * as THREE from 'three';
+import { WeaponManager } from '../src/weapons.js';
+import { verticalFov } from '../src/ads.js';
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#17232c');
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight,.1,100); scene.add(camera); camera.position.y = 1.7;
+const renderer = new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.append(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xcfe9ff,0x5d6958,2));
+const grid = new THREE.GridHelper(50,50,0x93b0ba,0x314b58);scene.add(grid);
+for (const [x,y,z] of [[0,1.7,-10],[-3,1.7,-10],[3,1.7,-10]]){const m=new THREE.Mesh(new THREE.SphereGeometry(.18,24,16),new THREE.MeshStandardMaterial({color:0xafff68}));m.position.set(x,y,z);scene.add(m)}
+const sound={playGunfire(){},playReload(){}};const weapons=new WeaponManager(camera,sound);
+document.querySelector('#weapon').onchange=e=>weapons.setWeapon(e.target.value);
+document.querySelector('#aim').onclick=()=>weapons.setAiming(!weapons.isAiming);
+document.querySelector('#fire').onclick=()=>weapons.shoot(0,true);
+document.querySelector('#reload').onclick=()=>weapons.reload();
+const clock=new THREE.Clock();
+function draw(){requestAnimationFrame(draw);weapons.update(Math.min(.05,clock.getDelta()),0,true);camera.aspect=innerWidth/innerHeight;camera.fov=verticalFov(103,camera.aspect,weapons.aimZoom);camera.updateProjectionMatrix();renderer.render(scene,camera);document.querySelector('#info').textContent=`${weapons.currentWeaponType.name} • ${weapons.isAiming?'ADS':'HIP'} • zoom ${weapons.aimZoom.toFixed(2)}× • FOV ${camera.fov.toFixed(2)}° vertical • ${(1000/weapons.getFireInterval()).toFixed(3)} tiros/s • ${weapons.ammo} balas`;}draw();
+window.onresize=()=>renderer.setSize(innerWidth,innerHeight);
+</script></html>
