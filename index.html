@@ -143,14 +143,14 @@
         <button type="button" class="difficulty-btn" data-difficulty="easy">FÁCIL</button>
         <button type="button" class="difficulty-btn active" data-difficulty="normal">NORMAL</button>
         <button type="button" class="difficulty-btn" data-difficulty="hard">DIFÍCIL</button>
-        <small>Afeta todos os modos e playlists.</small>
+        <small>Padrão dos modos e rotinas prontas. Playlists próprias têm dificuldade por etapa.</small>
       </div>
       <div class="lobby-tabs-row">
         <button class="lobby-tab active" id="tab-modes-view" type="button">
           <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (20)
         </button>
         <button class="lobby-tab" id="tab-playlists-view" type="button">
-          <span style="color: var(--val-gold);">⚡</span> ROTINAS & PLAYLISTS (3 SEQUÊNCIAS)
+          <span style="color: var(--val-gold);">⚡</span> ROTINAS & MINHAS PLAYLISTS
         </button>
         <button class="lobby-tab" id="tab-performance-view" type="button">
           <span style="color: #00ff88;">📊</span> MEU DESEMPENHO & VOLTAIC RANK
@@ -345,7 +345,7 @@
       <!-- 2. Playlist Selection Grid (Voltaic Benchmarks & CS Yprac Routines) -->
       <div id="playlists-view-container" style="display: none;">
         <div class="modes-grid-container">
-          <div class="section-label">SELECIONE UMA ROTINA COMPLETA DE TREINO (3 SEQUÊNCIAS COM ALVOS & ANGLE HOLD):</div>
+          <div class="section-label">ROTINAS PRONTAS</div>
           <div class="playlists-cards">
             <!-- Playlist 1: Voltaic Benchmark -->
             <div class="playlist-card selected" data-playlist="voltaic_benchmark" id="pl-card-voltaic">
@@ -409,6 +409,30 @@
             </div>
 
           </div>
+          <section id="custom-playlists" class="custom-playlists" aria-labelledby="custom-playlists-heading">
+            <div class="custom-playlists-header">
+              <div><h2 id="custom-playlists-heading">Minhas playlists</h2>
+                <p>Monte sua sequência de treino. As playlists ficam salvas apenas neste navegador.</p></div>
+              <button id="custom-playlist-new" type="button">+ Nova playlist</button>
+            </div>
+            <div id="custom-playlist-list" class="playlists-cards"></div>
+            <form class="custom-playlist-form" hidden>
+              <label class="custom-playlist-name-label" for="custom-playlist-name">Nome da playlist
+                <input id="custom-playlist-name" maxlength="64" required placeholder="Ex.: Aquecimento diário" />
+              </label>
+              <ol id="custom-stage-list"></ol>
+              <div class="custom-playlist-form-footer">
+                <button id="custom-playlist-add" type="button">+ Adicionar task</button>
+                <span id="custom-playlist-total"></span>
+                <button type="submit" class="custom-save">Salvar playlist</button>
+                <button id="custom-playlist-cancel" type="button">Cancelar</button>
+              </div>
+            </form>
+            <div class="custom-playlist-feedback">
+              <p id="custom-playlist-status" role="status" aria-live="polite"></p>
+              <button id="custom-playlist-undo" type="button" hidden>Desfazer exclusão</button>
+            </div>
+          </section>
         </div>
       </div>
 

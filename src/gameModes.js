@@ -1676,13 +1676,31 @@ export class GameModeManager {
   }
 
   // --- PLAYLIST ENGINE METHODS ---
-  startPlaylist(playlistId) {
-    const def = PLAYLIST_DEFINITIONS[playlistId];
-    if (!def) return;
-    this.activePlaylist = def;
+  startPlaylist(playlistId, customDefinition = null) {
+    const def = PLAYLIST_DEFINITIONS[playlistId] || customDefinition;
+    if (!def || def.id !== playlistId || !def.stages?.length ||
+        def.stages.some(stage => !AVAILABLE_MODES.includes(stage.mode))) return false;
+    this.stopPlaylist();
+    this.playlistSettings = { difficulty: this.difficultyId, scenario: this.holdScenario,
+      variants: { ...this.skillTaskManager.variants } };
+    this.activePlaylist = JSON.parse(JSON.stringify(def));
     this.playlistStageIndex = 0;
     this.playlistResults = [];
     this.startPlaylistStage(0);
+    return true;
+  }
+
+  stopPlaylist() {
+    clearTimeout(this.playlistTransitionTimeout);
+    this.playlistTransitionTimeout = null;
+    this.activePlaylist = null;
+    this.customDuration = null;
+    if (this.playlistSettings) {
+      this.setDifficulty(this.playlistSettings.difficulty);
+      this.holdScenario = this.playlistSettings.scenario;
+      this.skillTaskManager.variants = { ...this.playlistSettings.variants };
+      this.playlistSettings = null;
+    }
   }
 
   calculateStageGrade(score, accuracy, headshots) {
@@ -1717,6 +1735,9 @@ export class GameModeManager {
     this.playlistStageIndex = index;
     const stage = this.activePlaylist.stages[index];
 
+    if (stage.difficulty) this.setDifficulty(stage.difficulty);
+    if (stage.variant) this.skillTaskManager.variants[stage.mode] = stage.variant;
+
     if (stage.scenario) {
       this.holdScenario = stage.scenario;
     }
@@ -1747,14 +1768,19 @@ export class GameModeManager {
     // Handle playlist progression
     if (this.activePlaylist) {
       const currentStage = this.activePlaylist.stages[this.playlistStageIndex];
-      const stageGrade = this.calculateStageGrade(this.score, this.getAccuracy(), this.headshots);
+      const automatic = (isSkillMode(this.currentMode) && this.skillTaskManager.isAutomatic()) || this.currentMode === MODES.VOLTAIC_SMOOTH;
+      const stageAccuracy = this.activePlaylist.custom && !automatic && this.hits + this.misses === 0 ? 0 : this.getAccuracy();
+      const stageGrade = this.calculateStageGrade(this.score, stageAccuracy, this.headshots);
       const stageResult = {
         stageIndex: this.playlistStageIndex,
         stageTitle: currentStage.title,
         tag: currentStage.tag,
         mode: this.currentMode,
+        difficulty: this.difficultyId,
+        variant: currentStage.variant,
+        scenario: currentStage.scenario,
         score: this.score,
-        accuracy: this.getAccuracy(),
+        accuracy: stageAccuracy,
         headshots: this.headshots,
         hits: this.hits,
         misses: this.misses,
@@ -1812,7 +1838,9 @@ export class GameModeManager {
         });
 
         const totalShots = totalHits + totalMisses;
-        const avgAccuracy = totalShots > 0 ? Math.round((totalHits / totalShots) * 100) : 0;
+        const avgAccuracy = this.activePlaylist.custom
+          ? Math.round(this.playlistResults.reduce((sum, stage) => sum + stage.accuracy, 0) / this.playlistResults.length)
+          : (totalShots > 0 ? Math.round((totalHits / totalShots) * 100) : 0);
 
         const summary = {
           playlistId: this.activePlaylist.id,
@@ -1822,13 +1850,12 @@ export class GameModeManager {
           totalHits,
           totalMisses,
           totalHeadshots,
-          difficulty: this.difficultyId,
+          difficulty: new Set(this.playlistResults.map(stage => stage.difficulty)).size > 1 ? 'mixed' : this.difficultyId,
           stages: [...this.playlistResults]
         };
 
         const finishedPlaylist = this.activePlaylist;
-        this.activePlaylist = null;
-        this.customDuration = null;
+        this.stopPlaylist();
 
         if (this.ui.onPlaylistCompleted) {
           this.ui.onPlaylistCompleted(finishedPlaylist, summary);

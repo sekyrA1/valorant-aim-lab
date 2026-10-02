@@ -8,6 +8,7 @@
     "build": "vite build",
     "test:anti-rush": "node tools/test_anti_rush.mjs",
     "test:skill-tasks": "node tools/test_skill_tasks.mjs",
+    "test:playlists": "node tools/test_custom_playlists.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {

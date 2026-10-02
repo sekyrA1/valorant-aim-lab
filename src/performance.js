@@ -231,7 +231,7 @@ export class PerformanceTracker {
       type: 'playlist',
       playlistId,
       difficulty: summary.difficulty || 'normal',
-      modeLabel: `${def ? def.title : 'PLAYLIST COMPLETA'} • ${(summary.difficulty || 'normal').toUpperCase()}`,
+      modeLabel: `${def?.title || summary.playlistTitle || 'PLAYLIST COMPLETA'} • ${summary.difficulty === 'mixed' ? 'VARIADA' : (summary.difficulty || 'normal').toUpperCase()}`,
       score: summary.totalScore || 0,
       accuracy: summary.avgAccuracy || 0,
       headshots: summary.totalHeadshots || 0,

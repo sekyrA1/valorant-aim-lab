@@ -12,6 +12,7 @@ import { VFXManager } from './vfx.js';
 import { PostProcessor } from './postprocessing.js';
 import { DroneIndicators } from './droneIndicators.js';
 import { SKILL_TASKS, isSkillMode } from './skillTasks.js';
+import { CustomPlaylistStore, CustomPlaylistEditor, escapeHTML } from './customPlaylists.js';
 
 // --- THREE.JS SETUP ---
 const container = document.getElementById('canvas-container');
@@ -309,6 +310,7 @@ const gameModeManager = new GameModeManager(
     },
 
     onPlaylistStageStarted: (playlist, stage, stageIndex, totalStages, accumulatedScore = 0) => {
+      refreshDifficultyUI();
       const plHud = document.getElementById('playlist-hud-container');
       if (plHud) {
         plHud.style.display = 'flex';
@@ -331,7 +333,7 @@ const gameModeManager = new GameModeManager(
         document.getElementById('stage-trans-status').innerHTML = `★ ETAPA ${data.nextIndex}/${data.totalStages} FINALIZADA • ${gradeTag}`;
         document.getElementById('stage-trans-score').innerText = `+${data.currentResult.score.toLocaleString()} PTS`;
         document.getElementById('stage-trans-stats').innerText = `Precisão: ${data.currentResult.accuracy}% • ${data.currentResult.headshots} Headshots (${data.currentResult.hits} acertos)`;
-        document.getElementById('stage-trans-next').innerHTML = `PRÓXIMA ETAPA: <strong style="color: #fff;">${data.nextStage.title}</strong><br><span style="font-size: 0.8rem; color: var(--val-cyan); margin-top: 6px; display: inline-block;">[CLIQUE OU ESPAÇO PARA INICIAR AGORA]</span>`;
+        document.getElementById('stage-trans-next').innerHTML = `PRÓXIMA ETAPA: <strong style="color: #fff;">${escapeHTML(data.nextStage.title)}</strong><br><span style="font-size: 0.8rem; color: var(--val-cyan); margin-top: 6px; display: inline-block;">[CLIQUE OU ESPAÇO PARA INICIAR AGORA]</span>`;
         overlay.style.display = 'block';
 
         if (stageTransitionTimeout) clearTimeout(stageTransitionTimeout);
@@ -342,6 +344,7 @@ const gameModeManager = new GameModeManager(
     },
 
     onPlaylistCompleted: (playlist, summary) => {
+      refreshDifficultyUI();
       try {
         if (document.pointerLockElement) {
           document.exitPointerLock();
@@ -803,6 +806,7 @@ weaponButtons.forEach(btn => {
 // Start Game / Playlist from Lobby
 const btnStartGame = document.getElementById('btn-start-game');
 btnStartGame.addEventListener('click', () => {
+  if (activeLobbyTab === 'playlists') { startSelectedPlaylist(selectedPlaylistId); return; }
   soundManager.init();
   soundManager.playUIClick();
   lobbyScreen.style.display = 'none';
@@ -811,23 +815,21 @@ btnStartGame.addEventListener('click', () => {
   // Update HUD weapon info
   updateAmmoUI();
 
-  if (activeLobbyTab === 'playlists') {
-    gameModeManager.startPlaylist(selectedPlaylistId);
-  } else {
-    gameModeManager.startMode(selectedMode);
-  }
+  gameModeManager.startMode(selectedMode);
   playerController.requestPointerLock();
 });
 
 // Start specific playlist
 function startSelectedPlaylist(playlistId) {
+  const customDefinition = customPlaylistStore.get(playlistId);
+  if (!PLAYLIST_DEFINITIONS[playlistId] && !customDefinition) return;
   soundManager.init();
   soundManager.playUIClick();
   selectedPlaylistId = playlistId;
   lobbyScreen.style.display = 'none';
   hudElement.style.display = 'block';
   updateAmmoUI();
-  gameModeManager.startPlaylist(playlistId);
+  gameModeManager.startPlaylist(playlistId, customDefinition);
   playerController.requestPointerLock();
 }
 
@@ -863,7 +865,8 @@ document.getElementById('btn-pause-settings').addEventListener('click', () => {
 document.getElementById('btn-pause-lobby').addEventListener('click', () => {
   soundManager.playUIClick();
   gameModeManager.isRunning = false;
-  gameModeManager.activePlaylist = null;
+  gameModeManager.stopPlaylist();
+  refreshDifficultyUI();
   const plHud = document.getElementById('playlist-hud-container');
   if (plHud) plHud.style.display = 'none';
   pauseScreen.classList.remove('active');
@@ -907,7 +910,8 @@ function returnToLobbyFromReport() {
   pauseScreen.classList.remove('active');
   lobbyScreen.style.display = 'flex';
   gameModeManager.isRunning = false;
-  gameModeManager.activePlaylist = null;
+  gameModeManager.stopPlaylist();
+  refreshDifficultyUI();
   gameModeManager.droneManager.clearAll();
   gameModeManager.agentPassManager.clearAll();
   gameModeManager.antiRushManager.clearAll();
@@ -996,9 +1000,9 @@ function showPlaylistReportModal(playlist, summary, recorded) {
         <div>
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-family: var(--font-hud); font-size: 0.75rem; font-weight: 800; padding: 2px 7px; border-radius: 2px; background: ${stg.gradeColor || 'var(--val-cyan)'}; color: #0c1017; letter-spacing: 1px;">${stg.gradeBadge || '★'} ${stg.grade || 'CONCLUÍDO'}</span>
-            <span class="pl-stage-card-title" style="font-weight: 700; color: #fff; font-size: 1.05rem;">${i + 1}. ${stg.stageTitle}</span>
+            <span class="pl-stage-card-title" style="font-weight: 700; color: #fff; font-size: 1.05rem;">${i + 1}. ${escapeHTML(stg.stageTitle)}</span>
           </div>
-          <div class="pl-stage-card-sub" style="font-size: 0.85rem; color: var(--val-gray); margin-top: 4px;">${stg.tag} • ${stg.headshots} Headshots • ${stg.hits} Acertos / ${stg.misses} Erros</div>
+          <div class="pl-stage-card-sub" style="font-size: 0.85rem; color: var(--val-gray); margin-top: 4px;">${escapeHTML(stg.tag)} • ${stg.headshots} Headshots • ${stg.hits} Acertos / ${stg.misses} Erros</div>
         </div>
         <div style="text-align: right;">
           <div class="pl-stage-card-score" style="font-family: var(--font-display); font-size: 1.6rem; color: var(--val-gold); line-height: 1;">${stg.score.toLocaleString()} PTS</div>
@@ -1103,7 +1107,7 @@ playlistCards.forEach(card => {
   card.addEventListener('click', () => {
     soundManager.init();
     soundManager.playUIClick();
-    playlistCards.forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('.playlist-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
     selectedPlaylistId = card.getAttribute('data-playlist');
   });
@@ -1117,6 +1121,25 @@ btnStartPlaylistCards.forEach(btn => {
     const plId = btn.getAttribute('data-playlist');
     startSelectedPlaylist(plId);
   });
+});
+
+const customTaskCatalog = Object.fromEntries([...modeCards].map(card => [card.dataset.mode, {
+  title: card.querySelector('.mode-title').textContent.trim(),
+  desc: card.querySelector('.mode-desc')?.textContent.trim() || '',
+  category: card.closest('.task-category')?.querySelector('h2')?.firstChild.textContent.trim() || 'Tasks',
+  variants: SKILL_TASKS[card.dataset.mode]?.variants
+}]));
+const customPlaylistStore = new CustomPlaylistStore(customTaskCatalog);
+const selectPlaylist = id => {
+  selectedPlaylistId = id;
+  document.querySelectorAll('.playlist-card').forEach(card => card.classList.toggle('selected', card.dataset.playlist === id));
+};
+new CustomPlaylistEditor(document.getElementById('custom-playlists'), customTaskCatalog, customPlaylistStore, {
+  getDifficulty: () => gameModeManager.difficultyId,
+  getSelected: () => selectedPlaylistId,
+  onSelect: selectPlaylist,
+  onStart: startSelectedPlaylist,
+  onRemoved: id => { if (selectedPlaylistId === id) selectPlaylist('voltaic_benchmark'); }
 });
 
 // Update Playlist record badges in Lobby
@@ -1230,7 +1253,7 @@ function renderPerformanceModal() {
         return `
           <tr>
             <td style="color: var(--val-gray); font-size: 0.8rem;">${item.dateFormatted || '—'}</td>
-            <td style="font-weight: 700; color: #fff;">${typeBadge}${item.modeLabel || item.mode}</td>
+            <td style="font-weight: 700; color: #fff;">${typeBadge}${escapeHTML(item.modeLabel || item.mode)}</td>
             <td style="color: var(--val-gold); font-weight: 700;">${(item.score || 0).toLocaleString()}</td>
             <td style="color: ${(item.accuracy || 0) >= 70 ? 'var(--val-cyan)' : '#ff6b6b'}; font-weight: 700;">${item.accuracy || 0}%</td>
             <td style="color: #fff;">${item.headshots || 0}</td>
