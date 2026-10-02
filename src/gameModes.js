@@ -5,6 +5,7 @@ import { DIFFICULTIES, getDifficulty } from './difficulty.js';
 import { findSafeBotPlacement } from './spawnSafety.js';
 import { DroneManager } from './drones.js';
 import { AgentPassManager } from './agentPasses.js';
+import { AntiRushManager, SITE_BOUNDS } from './antiRush.js';
 
 export const MODES = {
   RETAKE: 'retake',
@@ -19,6 +20,7 @@ export const MODES = {
   VOLTAIC_SWITCH: 'voltaic_switch',
   DRONES: 'drones',
   JETT_NEON: 'jett_neon',
+  ANTI_RUSH: 'anti_rush',
   YPRAC_PREAIM: 'yprac_preaim',
   YPRAC_DEFENSE: 'yprac_defense',
   YPRAC_SPRAY: 'yprac_spray',
@@ -27,7 +29,7 @@ export const MODES = {
 
 export const AVAILABLE_MODES = [MODES.HOLD_PIXEL, MODES.GRIDSHOT, MODES.MICROSHOT,
   MODES.TRACKING, MODES.VOLTAIC_STATIC, MODES.VOLTAIC_PASU,
-  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH, MODES.DRONES, MODES.JETT_NEON];
+  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH, MODES.DRONES, MODES.JETT_NEON, MODES.ANTI_RUSH];
 
 export class GameModeManager {
   constructor(mapManager, botManager, playerController, weaponManager, soundManager, uiCallbacks) {
@@ -39,6 +41,7 @@ export class GameModeManager {
     this.ui = uiCallbacks;
     this.droneManager = new DroneManager(mapManager.scene);
     this.agentPassManager = new AgentPassManager(mapManager.scene);
+    this.antiRushManager = new AntiRushManager(mapManager.scene, botManager, soundManager);
 
     this.currentMode = MODES.HOLD_PIXEL;
     this.isRunning = false;
@@ -335,6 +338,7 @@ export class GameModeManager {
 
     this.droneManager.clearAll();
     this.agentPassManager.clearAll();
+    this.antiRushManager.clearAll();
     this.botManager.clearAll();
     this.botManager.difficulty = this.difficulty;
 
@@ -354,6 +358,8 @@ export class GameModeManager {
       this.initDroneMode();
     } else if (modeId === MODES.JETT_NEON) {
       this.initAgentPassMode();
+    } else if (modeId === MODES.ANTI_RUSH) {
+      this.initAntiRushMode();
     } else if (modeId === MODES.VOLTAIC_STATIC) {
       this.initVoltaicStaticMode();
     } else if (modeId === MODES.VOLTAIC_PASU) {
@@ -374,6 +380,49 @@ export class GameModeManager {
 
     if (this.ui.onModeStarted) {
       this.ui.onModeStarted(this.currentMode);
+    }
+  }
+
+  initAntiRushMode() {
+    const mapData = this.mapManager.buildAntiRushSite();
+    const { minX, maxX, minZ, maxZ } = SITE_BOUNDS;
+    const barrier = (x1, z1, x2, z2, y = -10) => ({
+      min: new THREE.Vector3(x1, y, z1), max: new THREE.Vector3(x2, 30, z2)
+    });
+    // These bounds affect only player movement: enemies and bullets can cross A Main.
+    this.player.setColliders([...this.mapManager.colliders,
+      barrier(minX - 2, minZ - 2, minX, maxZ + 2),
+      barrier(maxX, minZ - 2, maxX + 2, maxZ + 2),
+      barrier(minX - 2, minZ - 2, maxX + 2, minZ),
+      barrier(minX - 2, maxZ, maxX + 2, maxZ + 2),
+      barrier(-10, -22, 10, -14.6, 4.15)
+    ]);
+    this.player.setPosition(mapData.spawnPos.x, mapData.spawnPos.y, mapData.spawnPos.z);
+    this.player.setLookAngles(mapData.spawnYawDeg, 0);
+    this.sessionTimer = this.duration(90);
+    this.maxTime = this.sessionTimer;
+    this.ui.onHealthUpdate?.(this.playerHealth, this.playerShield);
+    this.antiRushManager.start(this.player, this.difficulty, this.mapManager.colliders, {
+      onDamage: damage => this.onPlayerDamaged(damage),
+      onPrompt: prompt => this.ui.onHoldPixelPrompt?.(prompt),
+      onEffects: effects => this.ui.onAntiRushEffects?.(effects),
+      onFailed: message => this.endGame(false, message),
+      onWaveCleared: perfect => {
+        this.score += perfect ? 4000 : 2500;
+        this.ui.onScoreUpdate?.({ score: this.score });
+      }
+    });
+  }
+
+  updateAntiRushMode(dt) {
+    this.sessionTimer = Math.max(0, this.sessionTimer - dt);
+    this.antiRushManager.launchMoreWaves = this.sessionTimer > 32 * this.difficulty.timer;
+    this.antiRushManager.update(dt);
+    if (!this.isRunning) return;
+    if (this.sessionTimer <= 0 || (!this.antiRushManager.waveActive && !this.antiRushManager.launchMoreWaves)) {
+      const rush = this.antiRushManager;
+      const defended = rush.wavesCleared > 0 && !rush.waveActive;
+      this.endGame(defended, `${defended ? 'SITE DEFENDIDO' : 'SITE INVADIDO'} • ${rush.wavesCleared} ONDAS • UTILIDADES ${rush.utilitiesDestroyed}/${rush.utilitiesSpawned}`);
     }
   }
 
@@ -1133,6 +1182,15 @@ export class GameModeManager {
     }
 
     this.hits++;
+    if (this.currentMode === MODES.ANTI_RUSH && hitData.bot.type === 'rush_utility') {
+      const result = this.antiRushManager.applyUtilityHit(hitData.bot);
+      if (result) {
+        this.score += 650;
+        this.ui.onScoreUpdate?.({ score: this.score, hits: this.hits, misses: this.misses,
+          headshots: this.headshots, accuracy: this.getAccuracy(), killStreak: this.killStreak });
+      }
+      return;
+    }
     let res;
     if (this.currentMode === MODES.DRONES) {
       res = this.droneManager.applyHit(hitData.bot, hitData.zone, hitData.damage);
@@ -1164,6 +1222,7 @@ export class GameModeManager {
         this.currentMode === MODES.VOLTAIC_SWITCH ||
         this.currentMode === MODES.DRONES ||
         this.currentMode === MODES.JETT_NEON ||
+        this.currentMode === MODES.ANTI_RUSH ||
         this.currentMode === MODES.YPRAC_PREAIM ||
         this.currentMode === MODES.YPRAC_DEFENSE ||
         this.currentMode === MODES.YPRAC_SPRAY ||
@@ -1253,6 +1312,9 @@ export class GameModeManager {
         }
         this.spawnSwitchTarget();
 
+      } else if (this.currentMode === MODES.ANTI_RUSH) {
+        this.score += 1500 + (res.isHeadshot ? 500 : 0);
+        this.ui.onHoldPixelPrompt?.({ state: 'success', text: `${hitData.bot.label} ELIMINADO • CONTINUE DEFENDENDO O SITE` });
       } else if (this.currentMode === MODES.DRONES) {
         const points = 1400 + Math.min(1000, this.killStreak * 100) + (res.isHeadshot ? 500 : 0);
         this.score += points;
@@ -1421,7 +1483,7 @@ export class GameModeManager {
   onPlayerDamaged(amount) {
     if (!this.isRunning || (this.currentMode !== MODES.RETAKE &&
         this.currentMode !== MODES.YPRAC_DEFENSE && this.currentMode !== MODES.DRONES &&
-        this.currentMode !== MODES.JETT_NEON)) return;
+        this.currentMode !== MODES.JETT_NEON && this.currentMode !== MODES.ANTI_RUSH)) return;
 
     // Apply to shields first, then health
     if (this.playerShield > 0) {
@@ -1436,7 +1498,9 @@ export class GameModeManager {
     }
 
     if (this.playerHealth <= 0) {
-      if (this.currentMode === MODES.YPRAC_DEFENSE) {
+      if (this.currentMode === MODES.ANTI_RUSH) {
+        this.endGame(false, 'VOCÊ CAIU • O A FOI INVADIDO');
+      } else if (this.currentMode === MODES.YPRAC_DEFENSE) {
         this.endGame(false, 'VOCÊ CAIU! DEFESA DO SITE FALHOU');
       } else {
         this.endGame(false, 'ELIMINATED IN ACTION');
@@ -1448,7 +1512,9 @@ export class GameModeManager {
   update(dt) {
     if (!this.isRunning) return;
 
-    if (this.currentMode === MODES.DRONES) {
+    if (this.currentMode === MODES.ANTI_RUSH) {
+      this.updateAntiRushMode(dt);
+    } else if (this.currentMode === MODES.DRONES) {
       this.updateDroneMode(dt);
     } else if (this.currentMode === MODES.JETT_NEON) {
       this.updateAgentPassMode(dt);
@@ -1625,6 +1691,7 @@ export class GameModeManager {
     this.isRunning = false;
     if (this.currentMode === MODES.DRONES) this.droneManager.clearAll();
     if (this.currentMode === MODES.JETT_NEON) this.agentPassManager.clearAll();
+    if (this.currentMode === MODES.ANTI_RUSH) this.antiRushManager.clearAll();
 
     // Handle playlist progression
     if (this.activePlaylist) {

@@ -90,6 +90,9 @@
 
       <!-- Angle Hold Reaction Time Prompt Banner -->
       <div id="hold-pixel-prompt" class="hold-prompt">SEGURE O PIXEL... PREPARE-SE</div>
+      <div id="anti-rush-smoke" class="anti-rush-effect"></div>
+      <div id="anti-rush-flash" class="anti-rush-effect"></div>
+      <div id="anti-rush-status" role="status"></div>
 
       <!-- Stage Transition Interstitial Overlay -->
       <div id="stage-transition-overlay" class="stage-transition-banner" style="display: none;">
@@ -143,7 +146,7 @@
       </div>
       <div class="lobby-tabs-row">
         <button class="lobby-tab active" id="tab-modes-view" type="button">
-          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (10)
+          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (11)
         </button>
         <button class="lobby-tab" id="tab-playlists-view" type="button">
           <span style="color: var(--val-gold);">⚡</span> ROTINAS & PLAYLISTS (3 SEQUÊNCIAS)
@@ -272,6 +275,18 @@
             <div class="mode-card-bottom">
               <span class="mode-stats-summary">Tempo: 60s • Passagens contínuas</span>
               <span style="color: #51dfff; font-weight: 700;">⚡ ESQUIVA</span>
+            </div>
+          </div>
+
+          <div class="mode-card" data-mode="anti_rush" id="card-anti-rush">
+            <div>
+              <span class="mode-badge-tag" style="color: #70dce0; border-color: #70dce0;">DEFESA DE SITE & UTILIDADES</span>
+              <h2 class="mode-title">ANTI-RUSH • ASCENT A</h2>
+              <p class="mode-desc">Segure o A contra entradas pelo A Main. Destrua o drone, o recon e a flash, acompanhe o dash da Jett na smoke e elimine os atacantes. Reposicione-se livremente dentro do site.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 90s • Ondas com sequência variável</span>
+              <span style="color: #70dce0; font-weight: 700;">SEGURE O SITE</span>
             </div>
           </div>
 

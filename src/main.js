@@ -101,6 +101,7 @@ const gameModeManager = new GameModeManager(
         [MODES.HOLD_PIXEL]: 'ANGLE HOLD - TRAVESSIA CONTÍNUA',
         [MODES.DRONES]: 'DRONE SURVIVAL - DESVIE & ELIMINE',
         [MODES.JETT_NEON]: 'JETT & NEON - PASSAGENS DE ATAQUE',
+        [MODES.ANTI_RUSH]: 'ANTI-RUSH • ASCENT A',
         [MODES.VOLTAIC_STATIC]: 'VOLTAIC 1w6ts - STATIC CLICKING',
         [MODES.VOLTAIC_PASU]: 'VOLTAIC PASU - DYNAMIC BOUNCE',
         [MODES.VOLTAIC_SMOOTH]: 'VOLTAIC - SMOOTHBOT 3D',
@@ -132,6 +133,7 @@ const gameModeManager = new GameModeManager(
           mode === MODES.HOLD_PIXEL ||
           mode === MODES.DRONES ||
           mode === MODES.JETT_NEON ||
+          mode === MODES.ANTI_RUSH ||
           mode === MODES.VOLTAIC_STATIC ||
           mode === MODES.VOLTAIC_PASU ||
           mode === MODES.VOLTAIC_SMOOTH ||
@@ -148,8 +150,20 @@ const gameModeManager = new GameModeManager(
         } else if (mode === MODES.JETT_NEON) {
           holdBanner.innerText = 'JETT VOA LANÇANDO FACAS • NEON DESLIZA DISPARANDO';
           holdBanner.className = 'hold-prompt waiting';
+        } else if (mode === MODES.ANTI_RUSH) {
+          holdBanner.innerText = 'DEFENDA O A • QUEBRE AS UTILIDADES • SEGURE O ENTRY';
+          holdBanner.className = 'hold-prompt waiting';
         }
       }
+    },
+
+    onAntiRushEffects: (effects) => {
+      document.getElementById('anti-rush-flash').style.opacity = String(effects.flash);
+      document.getElementById('anti-rush-smoke').style.opacity = String(effects.smoke);
+      const status = document.getElementById('anti-rush-status');
+      status.style.display = effects.active ? 'block' : 'none';
+      status.textContent = effects.active ? `ONDA ${effects.wave} • INIMIGOS ${effects.alive} • UTILIDADES ${effects.destroyed}/${effects.spawned}${effects.revealed ? ' • REVELADO' : ''}` : '';
+      status.classList.toggle('revealed', Boolean(effects.revealed));
     },
 
     onHoldPixelPrompt: (data) => {
@@ -397,7 +411,8 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
   const botHit = botManager.raycastBullet(origin, camDir, maxRange, mapManager.colliders);
   const droneHit = gameModeManager.droneManager.raycastBullet(origin, camDir, maxRange);
   const agentHit = gameModeManager.agentPassManager.raycastBullet(origin, camDir, maxRange);
-  const targetHit = [botHit, droneHit, agentHit]
+  const utilityHit = gameModeManager.antiRushManager.raycastBullet(origin, camDir, maxRange);
+  const targetHit = [botHit, droneHit, agentHit, utilityHit]
     .filter(Boolean)
     .reduce((closest, hit) => !closest || hit.distance < closest.distance ? hit : closest, null);
 
@@ -426,7 +441,7 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
     targetHit.damage = shotInfo.damage;
     gameModeManager.registerShot(targetHit);
 
-    if (targetHit.bot.isDead) {
+    if (targetHit.bot.isDead && targetHit.bot.type !== 'rush_utility') {
       triggerKillBanner(gameModeManager.killStreak, isHeadshot);
     }
   } else if (validMapHit && hitDistanceMap < Infinity) {
@@ -805,6 +820,7 @@ document.getElementById('btn-pause-lobby').addEventListener('click', () => {
   lobbyScreen.style.display = 'flex';
   gameModeManager.droneManager.clearAll();
   gameModeManager.agentPassManager.clearAll();
+  gameModeManager.antiRushManager.clearAll();
   botManager.clearAll();
   mapManager.clearMap();
   try {
@@ -841,6 +857,7 @@ function returnToLobbyFromReport() {
   gameModeManager.activePlaylist = null;
   gameModeManager.droneManager.clearAll();
   gameModeManager.agentPassManager.clearAll();
+  gameModeManager.antiRushManager.clearAll();
   botManager.clearAll();
   mapManager.clearMap();
   try {

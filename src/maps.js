@@ -10,6 +10,8 @@ export class MapManager {
   }
 
   clearMap() {
+    this.scene.background = new THREE.Color(0x0b1117);
+    this.scene.fog = new THREE.FogExp2(0x0b1117, .015);
     while (this.currentMapGroup.children.length > 0) {
       const child = this.currentMapGroup.children[0];
       this.currentMapGroup.remove(child);
@@ -393,6 +395,55 @@ export class MapManager {
         { x: 13, y: 0, z: 4, name: 'Wine', rotY: -Math.PI / 2 }
       ]
     };
+  }
+
+  buildAntiRushSite() {
+    this.buildRetakeSite();
+    const group = this.currentMapGroup;
+    // The defensive scenario starts before a plant.
+    if (this.spikeObject) {
+      group.remove(this.spikeObject.group);
+      this.spikeObject.group.traverse(object => {
+        object.geometry?.dispose();
+        object.material?.dispose();
+      });
+      this.spikeObject = null;
+    }
+    const materials = new Set();
+    group.traverse(object => {
+      if (object.material && !Array.isArray(object.material)) materials.add(object.material);
+    });
+    for (const material of materials) {
+      const color = material.color?.getHex();
+      if (color === 0x363d4a) material.color.set(0xb6aa96);
+      if (color === 0x242831) material.color.set(0x6c6970);
+    }
+    const stone = new THREE.MeshStandardMaterial({ color: 0xc0af95, roughness: .95 });
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(4, .28, 8, 32, Math.PI), stone);
+    arch.position.set(0, 2, 15.55);
+    group.add(arch);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(8, 2, .8), stone);
+    lintel.position.set(0, 7, 16);
+    group.add(lintel);
+    this.addColliderBox(-4, 6, 15.6, 4, 8, 16.4);
+    const bricks = new THREE.Mesh(new THREE.BoxGeometry(3, 1.1, 2.2), stone);
+    bricks.position.set(10.5, .55, 5);
+    group.add(bricks);
+    this.addColliderBox(9, 0, 3.9, 12, 1.1, 6.1);
+    const switchPanel = new THREE.Mesh(new THREE.BoxGeometry(.3, .5, .6),
+      new THREE.MeshStandardMaterial({ color: 0x64796c, emissive: 0x21503d, emissiveIntensity: .5 }));
+    switchPanel.position.set(-16.9, 1.5, 7);
+    group.add(switchPanel);
+    const tiles = [];
+    for (let x = -16; x <= 16; x += 1.6) tiles.push(x, .015, -20, x, .015, 14);
+    for (let z = -20; z <= 14; z += 1.6) tiles.push(-17, .015, z, 17, .015, z);
+    const tileGeometry = new THREE.BufferGeometry();
+    tileGeometry.setAttribute('position', new THREE.Float32BufferAttribute(tiles, 3));
+    group.add(new THREE.LineSegments(tileGeometry, new THREE.LineBasicMaterial({ color: 0x363c43, transparent: true, opacity: .22 })));
+    group.traverse(object => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; } });
+    this.scene.background = new THREE.Color(0x9fbcd5);
+    this.scene.fog = new THREE.FogExp2(0x9fbcd5, .003);
+    return { spawnPos: new THREE.Vector3(8, 0, -3), spawnYawDeg: 158 };
   }
 
   // Animated 3D Valorant Spike Model

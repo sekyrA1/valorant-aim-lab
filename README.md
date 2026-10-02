@@ -12,7 +12,9 @@ Um FPS 3D completo para navegador construído com **Three.js** e **Vite**, proje
 
 ## 🎮 Modos de Jogo Inclusos
 
-No lobby, escolha **Fácil**, **Normal** ou **Difícil**. A escolha vale para os 14 modos e para as playlists: ajusta tamanho e velocidade dos alvos, reação e dano dos bots e duração dos modos individuais. Os spawns táticos são reposicionados para ficar fora de caixas e paredes. Nos cenários Hold de Pixel, os bots percorrem trajetos livres de colisão e o tempo de reação começa quando ficam visíveis.
+No lobby, escolha **Fácil**, **Normal** ou **Difícil**. A escolha vale para os 11 modos disponíveis e para as playlists: ajusta tamanho e velocidade dos alvos, reação e dano dos bots e duração dos modos individuais. Os spawns táticos são reposicionados para ficar fora de caixas e paredes.
+
+**Anti-Rush — Ascent A:** defenda o site contra ondas pelo arco do A Main, protegido por uma smoke aliada. Destrua o drone de reconhecimento, o recon e a flash antes dos seus efeitos. Jett lança uma smoke no site, faz dash para dentro dela e sai para caçar o defensor; os demais inimigos atravessam a mesma smoke, abrem em lados variados e avançam ao redor das coberturas. A ordem de recon/flash, a presença de suporte e a ordem dos atacantes variam, mantendo smoke → dash → entradas. Barreiras invisíveis exclusivas do jogador mantêm a defesa no site. Fácil/Normal/Difícil têm 3/4/5 atacantes por onda, com velocidade, reação e cadência diferentes. Cada utilidade destruída rende pontos; negar todas dá bônus de onda perfeita. Execute `npm run test:anti-rush` para verificar a sequência, navegação, barreiras e efeitos.
 
 1. **Novo: Hold de Pixel & Treino de Reação (Ângulos Reais do Valorant)**
    - Treine a arte de segurar pixels e off-angles contra bots que abrem de surpresa.
