@@ -99,6 +99,7 @@ const gameModeManager = new GameModeManager(
         [MODES.TRACKING]: 'STRAFE TRACKING',
         [MODES.RANGE]: 'THE RANGE - TREINO',
         [MODES.HOLD_PIXEL]: 'ANGLE HOLD - TRAVESSIA CONTÍNUA',
+        [MODES.DRONES]: 'DRONE SURVIVAL - DESVIE & ELIMINE',
         [MODES.VOLTAIC_STATIC]: 'VOLTAIC 1w6ts - STATIC CLICKING',
         [MODES.VOLTAIC_PASU]: 'VOLTAIC PASU - DYNAMIC BOUNCE',
         [MODES.VOLTAIC_SMOOTH]: 'VOLTAIC - SMOOTHBOT 3D',
@@ -128,6 +129,7 @@ const gameModeManager = new GameModeManager(
       if (holdBanner) {
         const showPrompt = (
           mode === MODES.HOLD_PIXEL ||
+          mode === MODES.DRONES ||
           mode === MODES.VOLTAIC_STATIC ||
           mode === MODES.VOLTAIC_PASU ||
           mode === MODES.VOLTAIC_SMOOTH ||
@@ -138,6 +140,10 @@ const gameModeManager = new GameModeManager(
           mode === MODES.YPRAC_PEEK_DUEL
         );
         holdBanner.style.display = showPrompt ? 'block' : 'none';
+        if (mode === MODES.DRONES) {
+          holdBanner.innerText = 'SOBREVIVA • DRONES SURGEM NO CONE FRONTAL DE 90°';
+          holdBanner.className = 'hold-prompt waiting';
+        }
       }
     },
 
@@ -384,33 +390,35 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
 
   // 1. Raycast Bots (respects colliders/walls)
   const botHit = botManager.raycastBullet(origin, camDir, maxRange, mapManager.colliders);
+  const droneHit = gameModeManager.droneManager.raycastBullet(origin, camDir, maxRange);
+  const targetHit = droneHit && (!botHit || droneHit.distance < botHit.distance) ? droneHit : botHit;
 
   // 2. Raycast Map Geometry (stone walls, radianite boxes, floors, arches)
   const mapRaycaster = new THREE.Raycaster(origin, camDir, 0.1, maxRange);
   const mapIntersects = mapRaycaster.intersectObjects(mapManager.currentMapGroup.children, true);
   const validMapHit = mapIntersects.find(i => i.object.visible && i.face);
 
-  const hitDistanceBot = botHit ? botHit.distance : Infinity;
+  const hitDistanceBot = targetHit ? targetHit.distance : Infinity;
   const hitDistanceMap = validMapHit ? validMapHit.distance : Infinity;
 
-  if (botHit && hitDistanceBot < hitDistanceMap) {
+  if (targetHit && hitDistanceBot < hitDistanceMap) {
     // === HIT BOT / TARGET ===
-    vfxManager.spawnBulletTracer(barrelPos, botHit.point, weaponId);
+    vfxManager.spawnBulletTracer(barrelPos, targetHit.point, weaponId);
 
-    const isHeadshot = (botHit.zone === 'head');
+    const isHeadshot = (targetHit.zone === 'head');
     if (isHeadshot) {
       // Golden critical headshot starburst (Valorant style)
-      vfxManager.spawnHeadshotBurst(botHit.point);
+      vfxManager.spawnHeadshotBurst(targetHit.point);
     } else {
       // Armor & flesh impact sparks
-      const backNormal = new THREE.Vector3().subVectors(origin, botHit.point).normalize();
-      vfxManager.spawnImpactSparks(botHit.point, backNormal, 0xff3b4e, 10);
+      const backNormal = new THREE.Vector3().subVectors(origin, targetHit.point).normalize();
+      vfxManager.spawnImpactSparks(targetHit.point, backNormal, 0xff3b4e, 10);
     }
 
-    botHit.damage = shotInfo.damage;
-    gameModeManager.registerShot(botHit);
+    targetHit.damage = shotInfo.damage;
+    gameModeManager.registerShot(targetHit);
 
-    if (botHit.bot.isDead) {
+    if (targetHit.bot.isDead) {
       triggerKillBanner(gameModeManager.killStreak, isHeadshot);
     }
   } else if (validMapHit && hitDistanceMap < Infinity) {
@@ -787,6 +795,7 @@ document.getElementById('btn-pause-lobby').addEventListener('click', () => {
   pauseScreen.classList.remove('active');
   hudElement.style.display = 'none';
   lobbyScreen.style.display = 'flex';
+  gameModeManager.droneManager.clearAll();
   botManager.clearAll();
   mapManager.clearMap();
   try {
@@ -821,6 +830,7 @@ function returnToLobbyFromReport() {
   lobbyScreen.style.display = 'flex';
   gameModeManager.isRunning = false;
   gameModeManager.activePlaylist = null;
+  gameModeManager.droneManager.clearAll();
   botManager.clearAll();
   mapManager.clearMap();
   try {

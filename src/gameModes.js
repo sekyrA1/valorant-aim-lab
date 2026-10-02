@@ -3,6 +3,7 @@ import confetti from 'canvas-confetti';
 import { PLAYLIST_DEFINITIONS } from './performance.js';
 import { DIFFICULTIES, getDifficulty } from './difficulty.js';
 import { findSafeBotPlacement } from './spawnSafety.js';
+import { DroneManager } from './drones.js';
 
 export const MODES = {
   RETAKE: 'retake',
@@ -15,6 +16,7 @@ export const MODES = {
   VOLTAIC_PASU: 'voltaic_pasu',
   VOLTAIC_SMOOTH: 'voltaic_smooth',
   VOLTAIC_SWITCH: 'voltaic_switch',
+  DRONES: 'drones',
   YPRAC_PREAIM: 'yprac_preaim',
   YPRAC_DEFENSE: 'yprac_defense',
   YPRAC_SPRAY: 'yprac_spray',
@@ -23,7 +25,7 @@ export const MODES = {
 
 export const AVAILABLE_MODES = [MODES.HOLD_PIXEL, MODES.GRIDSHOT, MODES.MICROSHOT,
   MODES.TRACKING, MODES.VOLTAIC_STATIC, MODES.VOLTAIC_PASU,
-  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH];
+  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH, MODES.DRONES];
 
 export class GameModeManager {
   constructor(mapManager, botManager, playerController, weaponManager, soundManager, uiCallbacks) {
@@ -33,6 +35,7 @@ export class GameModeManager {
     this.weapon = weaponManager;
     this.sound = soundManager;
     this.ui = uiCallbacks;
+    this.droneManager = new DroneManager(mapManager.scene);
 
     this.currentMode = MODES.HOLD_PIXEL;
     this.isRunning = false;
@@ -74,6 +77,8 @@ export class GameModeManager {
     this.killStreak = 0;
     this.activeGridTargets = [];
     this.targetWallZ = -15.0;
+    this.droneSurvivalPoints = 0;
+    this.droneScoreUiTimer = 0;
 
     // Voltaic 1w6ts Static & Pasu Dynamic state
     this.voltaicCombo = 0;
@@ -325,6 +330,7 @@ export class GameModeManager {
     this.ypracSpraySetIndex = 0;
     this.ypracDuelIndex = 0;
 
+    this.droneManager.clearAll();
     this.botManager.clearAll();
     this.botManager.difficulty = this.difficulty;
 
@@ -340,6 +346,8 @@ export class GameModeManager {
       this.initRangeMode();
     } else if (modeId === MODES.HOLD_PIXEL) {
       this.initHoldPixelMode();
+    } else if (modeId === MODES.DRONES) {
+      this.initDroneMode();
     } else if (modeId === MODES.VOLTAIC_STATIC) {
       this.initVoltaicStaticMode();
     } else if (modeId === MODES.VOLTAIC_PASU) {
@@ -360,6 +368,60 @@ export class GameModeManager {
 
     if (this.ui.onModeStarted) {
       this.ui.onModeStarted(this.currentMode);
+    }
+  }
+
+  initDroneMode() {
+    const mapData = this.mapManager.buildAimlabArena();
+    this.player.setColliders(this.mapManager.colliders);
+    this.player.setPosition(mapData.spawnPos.x, mapData.spawnPos.y, mapData.spawnPos.z);
+    this.player.setLookAngles(mapData.spawnYawDeg, 0);
+
+    this.sessionTimer = this.duration(60);
+    this.maxTime = this.sessionTimer;
+    this.playerHealth = 100;
+    this.playerShield = 50;
+    this.droneSurvivalPoints = 0;
+    this.droneScoreUiTimer = 0;
+    if (this.ui.onHealthUpdate) this.ui.onHealthUpdate(this.playerHealth, this.playerShield);
+    this.droneManager.start(this.player, this.difficulty, this.mapManager.colliders);
+  }
+
+  updateDroneMode(dt) {
+    this.sessionTimer -= dt;
+    if (this.sessionTimer <= 0) {
+      this.sessionTimer = 0;
+      this.endGame(true, 'SOBREVIVEU AO ENXAME DE DRONES!');
+      return;
+    }
+
+    this.droneManager.update(
+      dt,
+      this.player,
+      this.difficulty,
+      this.mapManager.colliders,
+      damage => this.onPlayerDamaged(damage),
+      () => {
+        if (this.ui.onHoldPixelPrompt) {
+          this.ui.onHoldPixelPrompt({ state: 'early', text: '⚠ LASER DE MIRA • MUDE DE POSIÇÃO!' });
+        }
+      }
+    );
+    if (!this.isRunning) return;
+
+    this.droneSurvivalPoints += dt * 75;
+    const points = Math.floor(this.droneSurvivalPoints);
+    if (points > 0) {
+      this.score += points;
+      this.droneSurvivalPoints -= points;
+    }
+    this.droneScoreUiTimer += dt;
+    if (this.droneScoreUiTimer >= 0.2) {
+      this.droneScoreUiTimer = 0;
+      if (this.ui.onScoreUpdate) {
+        this.ui.onScoreUpdate({ score: this.score, hits: this.hits, misses: this.misses,
+          headshots: this.headshots, accuracy: this.getAccuracy(), killStreak: this.killStreak });
+      }
     }
   }
 
@@ -1011,7 +1073,9 @@ export class GameModeManager {
     }
 
     this.hits++;
-    const res = this.botManager.applyHit(hitData.bot, hitData.zone, hitData.damage);
+    const res = this.currentMode === MODES.DRONES
+      ? this.droneManager.applyHit(hitData.bot, hitData.zone, hitData.damage)
+      : this.botManager.applyHit(hitData.bot, hitData.zone, hitData.damage);
     if (!res) return;
 
     if (res.isHeadshot) {
@@ -1033,6 +1097,7 @@ export class GameModeManager {
         this.currentMode === MODES.VOLTAIC_PASU ||
         this.currentMode === MODES.VOLTAIC_SMOOTH ||
         this.currentMode === MODES.VOLTAIC_SWITCH ||
+        this.currentMode === MODES.DRONES ||
         this.currentMode === MODES.YPRAC_PREAIM ||
         this.currentMode === MODES.YPRAC_DEFENSE ||
         this.currentMode === MODES.YPRAC_SPRAY ||
@@ -1121,6 +1186,13 @@ export class GameModeManager {
           });
         }
         this.spawnSwitchTarget();
+
+      } else if (this.currentMode === MODES.DRONES) {
+        const points = 1400 + Math.min(1000, this.killStreak * 100) + (res.isHeadshot ? 500 : 0);
+        this.score += points;
+        if (this.ui.onHoldPixelPrompt) {
+          this.ui.onHoldPixelPrompt({ state: 'success', text: `DRONE DESTRUÍDO • +${points} PTS` });
+        }
 
       } else if (this.currentMode === MODES.YPRAC_PREAIM) {
         const ms = Math.round(performance.now() - this.ypracPreaimStartTime);
@@ -1272,7 +1344,8 @@ export class GameModeManager {
   }
 
   onPlayerDamaged(amount) {
-    if (!this.isRunning || (this.currentMode !== MODES.RETAKE && this.currentMode !== MODES.YPRAC_DEFENSE)) return;
+    if (!this.isRunning || (this.currentMode !== MODES.RETAKE &&
+        this.currentMode !== MODES.YPRAC_DEFENSE && this.currentMode !== MODES.DRONES)) return;
 
     // Apply to shields first, then health
     if (this.playerShield > 0) {
@@ -1299,7 +1372,9 @@ export class GameModeManager {
   update(dt) {
     if (!this.isRunning) return;
 
-    if (this.currentMode === MODES.RETAKE) {
+    if (this.currentMode === MODES.DRONES) {
+      this.updateDroneMode(dt);
+    } else if (this.currentMode === MODES.RETAKE) {
       this.updateRetakeMode(dt);
     } else if (this.currentMode === MODES.HOLD_PIXEL) {
       this.updateHoldPixelMode(dt);
@@ -1470,6 +1545,7 @@ export class GameModeManager {
 
   endGame(isVictory, message) {
     this.isRunning = false;
+    if (this.currentMode === MODES.DRONES) this.droneManager.clearAll();
 
     // Handle playlist progression
     if (this.activePlaylist) {
