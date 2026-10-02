@@ -11,6 +11,7 @@ import { PerformanceTracker, PLAYLIST_DEFINITIONS, VOLTAIC_TIERS } from './perfo
 import { VFXManager } from './vfx.js';
 import { PostProcessor } from './postprocessing.js';
 import { DroneIndicators } from './droneIndicators.js';
+import { SKILL_TASKS, isSkillMode } from './skillTasks.js';
 
 // --- THREE.JS SETUP ---
 const container = document.getElementById('canvas-container');
@@ -47,6 +48,8 @@ const postProcessor = new PostProcessor(renderer, scene, camera);
 
 // --- DOM ELEMENTS ---
 const hudElement = document.getElementById('hud');
+const hudControls = document.getElementById('hud-controls-hint');
+const standardControls = hudControls.innerHTML;
 const droneIndicators = new DroneIndicators(document.getElementById('drone-indicators'));
 const lobbyScreen = document.getElementById('lobby-screen');
 const pauseScreen = document.getElementById('pause-screen');
@@ -113,7 +116,12 @@ const gameModeManager = new GameModeManager(
         [MODES.YPRAC_SPRAY]: 'YPRAC - SPRAY TRANSFER',
         [MODES.YPRAC_PEEK_DUEL]: 'YPRAC - PEEK & JIGGLE DUEL'
       };
-      hudModeTitle.innerText = `${modeTitles[mode] || 'AIM TRAINER'} • ${gameModeManager.difficulty.label}`;
+      hudModeTitle.innerText = `${SKILL_TASKS[mode]?.title || modeTitles[mode] || 'AIM TRAINER'} • ${gameModeManager.difficulty.label}`;
+      hudControls.innerHTML = isSkillMode(mode)
+        ? (gameModeManager.skillTaskManager.isAutomatic()
+          ? '[MOUSE] Acompanhar • Posição fixa • [ESC] Menu'
+          : '[MOUSE] Mirar • [CLIQUE] Atirar • [R] Recarregar • Posição fixa • [ESC] Menu')
+        : standardControls;
       hudScore.innerText = 'SCORE: 0';
       hudHealth.innerText = '100';
       hudHealthBar.style.width = '100%';
@@ -132,7 +140,7 @@ const gameModeManager = new GameModeManager(
       const holdBanner = document.getElementById('hold-pixel-prompt');
       if (holdBanner) {
         const showPrompt = (
-          mode === MODES.HOLD_PIXEL ||
+          isSkillMode(mode) || mode === MODES.HOLD_PIXEL ||
           mode === MODES.DRONES ||
           mode === MODES.JETT_NEON ||
           mode === MODES.ANTI_RUSH ||
@@ -146,7 +154,9 @@ const gameModeManager = new GameModeManager(
           mode === MODES.YPRAC_PEEK_DUEL
         );
         holdBanner.style.display = showPrompt ? 'block' : 'none';
-        if (mode === MODES.DRONES) {
+        if (isSkillMode(mode)) {
+          gameModeManager.skillTaskManager.publish();
+        } else if (mode === MODES.DRONES) {
           holdBanner.innerText = 'SOBREVIVA • CONE DE 60° • SETAS INDICAM DRONES FORA DA TELA';
           holdBanner.className = 'hold-prompt waiting';
         } else if (mode === MODES.JETT_NEON) {
@@ -245,7 +255,7 @@ const gameModeManager = new GameModeManager(
           isVictory,
           mode: summary?.mode || selectedMode,
           modeLabel: summary?.mode
-            ? `${summary.mode.toUpperCase()} • ${gameModeManager.difficulty.label}` : 'TREINO'
+            ? `${SKILL_TASKS[summary.mode]?.title || summary.mode.toUpperCase()} • ${gameModeManager.difficulty.label}` : 'TREINO'
         });
         updatePlaylistRecordsUI();
       } catch (err) {
@@ -274,6 +284,24 @@ const gameModeManager = new GameModeManager(
       if (missesEl) missesEl.innerText = misses;
       const kpsEl = document.getElementById('report-kps');
       if (kpsEl) kpsEl.innerText = kps;
+
+      const metrics = summary?.skillMetrics;
+      const reportLabels = { 'report-acc': 'PRECISÃO', 'report-hs': 'HEADSHOTS',
+        'report-hits': 'TIROS ACERTADOS', 'report-misses': 'TIROS ERRADOS', 'report-kps': 'ALVOS / SEG (KPS)' };
+      if (metrics) {
+        reportLabels['report-hs'] = 'ELIMINAÇÕES';
+        reportLabels['report-misses'] = 'ERROS / ALVOS PERDIDOS';
+        if (metrics.automatic) reportLabels['report-acc'] = 'COBERTURA DA MIRA';
+        if (metrics.tracking) {
+          reportLabels['report-hs'] = 'TEMPO NO ALVO (s)'; hsEl.innerText = metrics.timeOnTarget.toFixed(1);
+          reportLabels['report-hits'] = 'TEMPO MEDIDO (s)'; hitsEl.innerText = metrics.sampleTime.toFixed(1);
+          reportLabels['report-misses'] = 'TEMPO FORA DO ALVO (s)'; missesEl.innerText = (metrics.sampleTime - metrics.timeOnTarget).toFixed(1);
+          reportLabels['report-kps'] = 'PONTOS / SEG'; kpsEl.innerText = (score / Math.max(.001, metrics.sampleTime)).toFixed(1);
+        } else if (metrics.automatic) reportLabels['report-hits'] = 'ALVOS CONFIRMADOS';
+      }
+      for (const [id, label] of Object.entries(reportLabels)) {
+        document.getElementById(id).closest('.report-stat-card').querySelector('.stat-card-title').innerText = label;
+      }
 
       if (reportModal) {
         reportModal.classList.add('active');
@@ -414,7 +442,8 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
   const droneHit = gameModeManager.droneManager.raycastBullet(origin, camDir, maxRange);
   const agentHit = gameModeManager.agentPassManager.raycastBullet(origin, camDir, maxRange);
   const utilityHit = gameModeManager.antiRushManager.raycastBullet(origin, camDir, maxRange);
-  const targetHit = [botHit, droneHit, agentHit, utilityHit]
+  const skillHit = gameModeManager.skillTaskManager.raycastBullet(origin, camDir, maxRange);
+  const targetHit = [botHit, droneHit, agentHit, utilityHit, skillHit]
     .filter(Boolean)
     .reduce((closest, hit) => !closest || hit.distance < closest.distance ? hit : closest, null);
 
@@ -434,7 +463,7 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
     if (isHeadshot) {
       // Golden critical headshot starburst (Valorant style)
       vfxManager.spawnHeadshotBurst(targetHit.point);
-    } else {
+    } else if (targetHit.bot.type !== 'skill_target') {
       // Armor & flesh impact sparks
       const backNormal = new THREE.Vector3().subVectors(origin, targetHit.point).normalize();
       vfxManager.spawnImpactSparks(targetHit.point, backNormal, 0xff3b4e, 10);
@@ -443,7 +472,7 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
     targetHit.damage = shotInfo.damage;
     gameModeManager.registerShot(targetHit);
 
-    if (targetHit.bot.isDead && targetHit.bot.type !== 'rush_utility') {
+    if (targetHit.bot.isDead && !['rush_utility', 'skill_target'].includes(targetHit.bot.type)) {
       triggerKillBanner(gameModeManager.killStreak, isHeadshot);
     }
   } else if (validMapHit && hitDistanceMap < Infinity) {
@@ -691,6 +720,26 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 // --- LOBBY & MODE SELECTION UI ---
+for (const [mode, task] of Object.entries(SKILL_TASKS)) {
+  const card = document.createElement('div');
+  card.className = 'mode-card skill-mode-card'; card.dataset.mode = mode; card.id = `card-${mode}`;
+  card.style.setProperty('--skill-color', task.color);
+  card.innerHTML = `<div><span class="mode-badge-tag">${task.badge}</span>
+    <h2 class="mode-title">${task.title}</h2><p class="mode-desc">${task.desc}</p>
+    ${task.variants ? `<div class="scenario-selector-pills">${task.variants.map(([id, label], index) =>
+      `<button class="pill-skill-variant${index ? '' : ' active'}" data-task="${mode}" data-variant="${id}" type="button">${label}</button>`).join('')}</div>` : ''}</div>
+    <div class="mode-card-bottom"><span class="mode-stats-summary">Tempo: 60s • Posição fixa</span><span class="skill-adaptation">ADAPTAÇÃO</span></div>`;
+  document.querySelector(`[data-skill-category="${task.category}"]`).appendChild(card);
+}
+document.querySelectorAll('.pill-skill-variant').forEach(button => button.addEventListener('click', event => {
+  event.stopPropagation();
+  soundManager.init(); soundManager.playUIClick();
+  gameModeManager.skillTaskManager.variants[button.dataset.task] = button.dataset.variant;
+  document.querySelectorAll(`.pill-skill-variant[data-task="${button.dataset.task}"]`).forEach(other =>
+    other.classList.toggle('active', other === button));
+  button.closest('.mode-card').click();
+  savePlayerConfig({ skillVariants: { ...gameModeManager.skillTaskManager.variants } });
+}));
 const modeCards = document.querySelectorAll('.mode-card');
 const difficultyButtons = document.querySelectorAll('.difficulty-btn');
 function refreshDifficultyUI() {
@@ -823,6 +872,8 @@ document.getElementById('btn-pause-lobby').addEventListener('click', () => {
   gameModeManager.droneManager.clearAll();
   gameModeManager.agentPassManager.clearAll();
   gameModeManager.antiRushManager.clearAll();
+  gameModeManager.skillTaskManager.clearAll();
+  playerController.aimOnly = false;
   botManager.clearAll();
   mapManager.clearMap();
   try {
@@ -860,6 +911,8 @@ function returnToLobbyFromReport() {
   gameModeManager.droneManager.clearAll();
   gameModeManager.agentPassManager.clearAll();
   gameModeManager.antiRushManager.clearAll();
+  gameModeManager.skillTaskManager.clearAll();
+  playerController.aimOnly = false;
   botManager.clearAll();
   mapManager.clearMap();
   try {
@@ -1454,6 +1507,7 @@ fovSlider.addEventListener('input', (e) => {
   const val = parseInt(e.target.value);
   labelFov.innerText = `${val}°`;
   playerController.setFov(val);
+  gameModeManager.skillTaskManager.setViewportHeight(window.innerHeight);
   savePlayerConfig({ fov: val });
 });
 
@@ -1630,6 +1684,14 @@ function applyAllSettings(config) {
 
   // 8. Mode
   selectedMode = AVAILABLE_MODES.includes(config.mode) ? config.mode : MODES.HOLD_PIXEL;
+  for (const [mode, task] of Object.entries(SKILL_TASKS)) {
+    const savedVariant = config.skillVariants?.[mode];
+    if (task.variants?.some(([id]) => id === savedVariant)) {
+      gameModeManager.skillTaskManager.variants[mode] = savedVariant;
+      document.querySelectorAll(`.pill-skill-variant[data-task="${mode}"]`).forEach(button =>
+        button.classList.toggle('active', button.dataset.variant === savedVariant));
+    }
+  }
   gameModeManager.setDifficulty(config.difficulty || 'normal');
   refreshDifficultyUI();
   modeCards.forEach(card => {
@@ -1662,6 +1724,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   playerController.updateCameraFov();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  gameModeManager.skillTaskManager.setViewportHeight(window.innerHeight);
   postProcessor.resize(window.innerWidth, window.innerHeight);
 });
 

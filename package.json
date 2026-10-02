@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "vite build",
     "test:anti-rush": "node tools/test_anti_rush.mjs",
+    "test:skill-tasks": "node tools/test_skill_tasks.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {

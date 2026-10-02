@@ -752,6 +752,19 @@ body, html {
   gap: 16px;
 }
 
+.skill-mode-card .mode-title { font-size: 1.85rem; }
+.skill-mode-card .mode-badge-tag, .skill-adaptation { color: var(--skill-color); }
+.skill-adaptation { font: 700 .7rem var(--font-hud); }
+.pill-skill-variant {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid var(--val-accent-border);
+  color: var(--val-light);
+  font: 600 .72rem var(--font-hud);
+  cursor: pointer;
+}
+.pill-skill-variant.active { border-color: var(--skill-color); color: var(--skill-color); }
+
 .mode-card {
   background: rgba(20, 29, 39, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.08);

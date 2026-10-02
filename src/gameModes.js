@@ -6,6 +6,7 @@ import { findSafeBotPlacement } from './spawnSafety.js';
 import { DroneManager } from './drones.js';
 import { AgentPassManager } from './agentPasses.js';
 import { AntiRushManager, SITE_BOUNDS } from './antiRush.js';
+import { SkillTaskManager, SKILL_MODE_IDS, isSkillMode } from './skillTasks.js';
 
 export const MODES = {
   RETAKE: 'retake',
@@ -29,7 +30,7 @@ export const MODES = {
 
 export const AVAILABLE_MODES = [MODES.HOLD_PIXEL, MODES.GRIDSHOT, MODES.MICROSHOT,
   MODES.TRACKING, MODES.VOLTAIC_STATIC, MODES.VOLTAIC_PASU,
-  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH, MODES.DRONES, MODES.JETT_NEON, MODES.ANTI_RUSH];
+  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH, MODES.DRONES, MODES.JETT_NEON, MODES.ANTI_RUSH, ...SKILL_MODE_IDS];
 
 export class GameModeManager {
   constructor(mapManager, botManager, playerController, weaponManager, soundManager, uiCallbacks) {
@@ -42,6 +43,7 @@ export class GameModeManager {
     this.droneManager = new DroneManager(mapManager.scene);
     this.agentPassManager = new AgentPassManager(mapManager.scene);
     this.antiRushManager = new AntiRushManager(mapManager.scene, botManager, soundManager);
+    this.skillTaskManager = new SkillTaskManager(mapManager.scene);
 
     this.currentMode = MODES.HOLD_PIXEL;
     this.isRunning = false;
@@ -339,10 +341,14 @@ export class GameModeManager {
     this.droneManager.clearAll();
     this.agentPassManager.clearAll();
     this.antiRushManager.clearAll();
+    this.skillTaskManager.clearAll();
+    this.player.aimOnly = false;
     this.botManager.clearAll();
     this.botManager.difficulty = this.difficulty;
 
-    if (modeId === MODES.RETAKE) {
+    if (isSkillMode(modeId)) {
+      this.initSkillTask(modeId);
+    } else if (modeId === MODES.RETAKE) {
       this.initRetakeMode();
     } else if (modeId === MODES.GRIDSHOT) {
       this.initGridshotMode();
@@ -413,6 +419,41 @@ export class GameModeManager {
         this.ui.onScoreUpdate?.({ score: this.score });
       }
     });
+  }
+
+  initSkillTask(mode) {
+    const mapData = this.mapManager.buildAimlabArena();
+    this.player.aimOnly = true;
+    this.player.currentEyeHeight = this.player.STAND_EYE_HEIGHT || 1.7;
+    this.player.isGrounded = true;
+    this.player.landingDip = 0;
+    this.player.landingSlowdownTimer = 0;
+    this.player.setColliders(this.mapManager.colliders);
+    this.player.setPosition(mapData.spawnPos.x, mapData.spawnPos.y, mapData.spawnPos.z);
+    this.player.setLookAngles(0, 0);
+    this.sessionTimer = this.duration(60); this.maxTime = this.sessionTimer;
+    this.skillTaskManager.start(mode, this.player.camera, this.difficulty, {
+      onStats: stats => {
+        Object.assign(this, { score: stats.score, hits: stats.hits, misses: stats.misses, headshots: stats.headshots });
+        this.ui.onScoreUpdate?.({ ...stats, killStreak: this.killStreak });
+      },
+      onPrompt: text => this.ui.onHoldPixelPrompt?.({ text, state: 'waiting' }),
+      onKill: () => {
+        this.killStreak++;
+        this.sound.playTargetPop();
+        if (this.autoRefillAmmo !== false && mode !== 'voxts' &&
+            (mode !== 'wall_two' || this.skillTaskManager.targets.length === 1)) {
+          this.weapon.refillMagOnKill(); this.ui.onAmmoRefilled?.(this.weapon.ammo);
+        }
+      }
+    }, typeof window !== 'undefined' ? window.innerHeight || 720 : 720);
+  }
+
+  updateSkillTask(dt) {
+    const step = Math.min(dt, this.sessionTimer);
+    this.skillTaskManager.update(step);
+    this.sessionTimer = Math.max(0, this.sessionTimer - dt);
+    if (this.sessionTimer === 0) this.endGame(true, this.skillTaskManager.summary());
   }
 
   updateAntiRushMode(dt) {
@@ -1153,6 +1194,10 @@ export class GameModeManager {
   // Handle Shot Result
   registerShot(hitData) {
     if (!this.isRunning) return;
+    if (isSkillMode(this.currentMode)) {
+      if (!this.skillTaskManager.shot(hitData) && !this.skillTaskManager.isAutomatic()) this.killStreak = 0;
+      return;
+    }
     if (this.currentMode === MODES.VOLTAIC_SMOOTH) return; // Tracked by time on target.
 
     if (!hitData) {
@@ -1476,6 +1521,7 @@ export class GameModeManager {
   }
 
   getAccuracy() {
+    if (isSkillMode(this.currentMode)) return this.skillTaskManager.accuracy();
     const total = this.hits + this.misses;
     if (total === 0) return 100;
     return Math.round((this.hits / total) * 100);
@@ -1513,7 +1559,9 @@ export class GameModeManager {
   update(dt) {
     if (!this.isRunning) return;
 
-    if (this.currentMode === MODES.ANTI_RUSH) {
+    if (isSkillMode(this.currentMode)) {
+      this.updateSkillTask(dt);
+    } else if (this.currentMode === MODES.ANTI_RUSH) {
       this.updateAntiRushMode(dt);
     } else if (this.currentMode === MODES.DRONES) {
       this.updateDroneMode(dt);
@@ -1690,6 +1738,8 @@ export class GameModeManager {
 
   endGame(isVictory, message) {
     this.isRunning = false;
+    this.player.aimOnly = false;
+    if (isSkillMode(this.currentMode)) this.skillTaskManager.clearAll();
     if (this.currentMode === MODES.DRONES) this.droneManager.clearAll();
     if (this.currentMode === MODES.JETT_NEON) this.agentPassManager.clearAll();
     if (this.currentMode === MODES.ANTI_RUSH) this.antiRushManager.clearAll();
@@ -1798,7 +1848,8 @@ export class GameModeManager {
 
     // Record high scores
     try {
-      const bestScoreKey = `valfps_best_${this.currentMode}${this.difficultyId === 'normal' ? '' : `_${this.difficultyId}`}`;
+      const variantSuffix = isSkillMode(this.currentMode) && this.skillTaskManager.variant ? `_${this.skillTaskManager.variant}` : '';
+      const bestScoreKey = `valfps_best_${this.currentMode}${variantSuffix}${this.difficultyId === 'normal' ? '' : `_${this.difficultyId}`}`;
       const prevBest = parseInt(localStorage.getItem(bestScoreKey) || '0', 10);
       if (this.score > prevBest) {
         localStorage.setItem(bestScoreKey, this.score.toString());
@@ -1818,6 +1869,11 @@ export class GameModeManager {
         headshots: this.headshots,
         hits: this.hits,
         misses: this.misses,
+        skillMetrics: isSkillMode(this.currentMode) ? {
+          variant: this.skillTaskManager.variant, automatic: this.skillTaskManager.isAutomatic(),
+          tracking: this.skillTaskManager.isTracking(), timeOnTarget: this.skillTaskManager.timeOnTarget,
+          sampleTime: this.skillTaskManager.sampleTime, expired: this.skillTaskManager.expired
+        } : undefined,
         kps: (this.hits / Math.max(1, this.maxTime - this.sessionTimer)).toFixed(2)
       });
     }

@@ -304,7 +304,7 @@ export class PlayerController {
     this.applyPendingMouseInput();
 
     // 1. Determine target speed
-    this.isCrouching = this.keys.crouch;
+    this.isCrouching = !this.aimOnly && this.keys.crouch;
     this.isWalking = this.keys.walk;
 
     const baseRun = (weaponManager && weaponManager.currentWeaponType && weaponManager.currentWeaponType.isMelee) ? 7.15 : this.RUN_SPEED;
@@ -327,6 +327,7 @@ export class PlayerController {
     if (this.keys.backward) wishDir.z += 1;
     if (this.keys.left) wishDir.x -= 1;
     if (this.keys.right) wishDir.x += 1;
+    if (this.aimOnly) wishDir.set(0, 0, 0);
 
     if (wishDir.lengthSq() > 0) {
       wishDir.normalize();
@@ -375,7 +376,7 @@ export class PlayerController {
 
     // 4. Jump & Gravity
     if (this.isGrounded) {
-      if (this.keys.jump) {
+      if (this.keys.jump && !this.aimOnly) {
         this.velocity.y = this.JUMP_FORCE;
         this.isGrounded = false;
         this.soundManager.playJump();

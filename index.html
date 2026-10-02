@@ -115,7 +115,7 @@
       </div>
 
       <!-- Controls Hint (Bottom Center) -->
-      <div class="hud-controls-hint">
+      <div class="hud-controls-hint" id="hud-controls-hint">
         <span>[WASD] Mover</span> • <span>[SHIFT] Andar</span> • <span>[CTRL] Agachar</span> • <span>[ESPAÇO] Pular</span> • <span>[1,2,3] Armas/Faca</span> • <span>[R] Recarregar</span> • <span>[F / 4] Defusar</span> • <span>[ESC] Menu</span>
       </div>
     </div>
@@ -147,7 +147,7 @@
       </div>
       <div class="lobby-tabs-row">
         <button class="lobby-tab active" id="tab-modes-view" type="button">
-          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (11)
+          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (20)
         </button>
         <button class="lobby-tab" id="tab-playlists-view" type="button">
           <span style="color: var(--val-gold);">⚡</span> ROTINAS & PLAYLISTS (3 SEQUÊNCIAS)
@@ -162,15 +162,18 @@
         <div class="modes-grid-container">
           <div class="section-label">SELECIONE O MODO DE TREINO INDIVIDUAL:</div>
           <nav class="task-category-nav" aria-label="Categorias de treino">
-<a href="#tasks-precision">Precisão e flicks <span>4</span></a>
-<a href="#tasks-tracking">Tracking <span>2</span></a>
-<a href="#tasks-switch">Troca de alvos <span>1</span></a>
+<a href="#tasks-precision">Precisão e flicks <span>2</span></a>
+<a href="#tasks-dynamic">Clicking dinâmico <span>3</span></a>
+<a href="#tasks-micro">Microajuste e correção <span>3</span></a>
+<a href="#tasks-tracking">Tracking e smoothness <span>4</span></a>
+<a href="#tasks-switch">Troca de alvos <span>2</span></a>
+<a href="#tasks-vertical">Verticalidade e timing <span>2</span></a>
 <a href="#tasks-reaction">Reação <span>1</span></a>
 <a href="#tasks-defense">Defesa e esquiva <span>3</span></a>
 </nav>
 <section class="task-category" id="tasks-precision" aria-labelledby="tasks-precision-title">
-<header class="task-category-header"><h2 id="tasks-precision-title">Precisão e flicks <span>4 tasks</span></h2><p>Velocidade, microajustes e timing de clique.</p></header>
-<div class="modes-cards">
+<header class="task-category-header"><h2 id="tasks-precision-title">Precisão e flicks <span>2 tasks</span></h2><p>Cadência e velocidade de primeiro tiro.</p></header>
+<div class="modes-cards" data-skill-category="precision">
 <div class="mode-card" data-mode="gridshot" id="card-gridshot">
             <div>
               <span class="mode-badge-tag">AIMLAB CLÁSSICO</span>
@@ -180,17 +183,6 @@
             <div class="mode-card-bottom">
               <span class="mode-stats-summary">Tempo: 60s • Alvos Orbe</span>
               <span style="color: var(--val-cyan); font-weight: 700;">⚡ FLICKS</span>
-            </div>
-          </div>
-<div class="mode-card" data-mode="microshot" id="card-microshot">
-            <div>
-              <span class="mode-badge-tag">KOVAAKS / PRECISÃO</span>
-              <h2 class="mode-title">MICROSHOT</h2>
-              <p class="mode-desc">Alvos ultra-pequenos para calibrar micro-ajustes finos de mira e precisão cirúrgica de primeiro tiro.</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">Tempo: 60s • Micro-Flicks</span>
-              <span style="color: var(--val-cyan); font-weight: 700;">🎯 1-TAP</span>
             </div>
           </div>
 <div class="mode-card" data-mode="voltaic_static" id="card-voltaic-static">
@@ -204,6 +196,11 @@
               <span style="color: var(--val-gold); font-weight: 700;">🎯 PRECISÃO</span>
             </div>
           </div>
+</div>
+</section>
+<section class="task-category" id="tasks-dynamic" aria-labelledby="tasks-dynamic-title">
+<header class="task-category-header"><h2 id="tasks-dynamic-title">Clicking dinâmico <span>3 tasks</span></h2><p>Confirmação de mira, anti-peeking e frenagem ADAD.</p></header>
+<div class="modes-cards" data-skill-category="dynamic">
 <div class="mode-card" data-mode="voltaic_pasu" id="card-voltaic-pasu">
             <div>
               <span class="mode-badge-tag" style="color: #ff0055; border-color: #ff0055;">⚡ VOLTAIC OFICIAL</span>
@@ -217,9 +214,25 @@
           </div>
 </div>
 </section>
+<section class="task-category" id="tasks-micro" aria-labelledby="tasks-micro-title">
+<header class="task-category-header"><h2 id="tasks-micro-title">Microajuste e correção <span>3 tasks</span></h2><p>Ajustes pequenos, duelos limpos e reação após o flick.</p></header>
+<div class="modes-cards" data-skill-category="micro">
+<div class="mode-card" data-mode="microshot" id="card-microshot">
+            <div>
+              <span class="mode-badge-tag">KOVAAKS / PRECISÃO</span>
+              <h2 class="mode-title">MICROSHOT</h2>
+              <p class="mode-desc">Alvos ultra-pequenos para calibrar micro-ajustes finos de mira e precisão cirúrgica de primeiro tiro.</p>
+            </div>
+            <div class="mode-card-bottom">
+              <span class="mode-stats-summary">Tempo: 60s • Micro-Flicks</span>
+              <span style="color: var(--val-cyan); font-weight: 700;">🎯 1-TAP</span>
+            </div>
+          </div>
+</div>
+</section>
 <section class="task-category" id="tasks-tracking" aria-labelledby="tasks-tracking-title">
-<header class="task-category-header"><h2 id="tasks-tracking-title">Tracking <span>2 tasks</span></h2><p>Acompanhe alvos em movimento com uma mira estável.</p></header>
-<div class="modes-cards">
+<header class="task-category-header"><h2 id="tasks-tracking-title">Tracking e smoothness <span>4 tasks</span></h2><p>Mira estável, controle de tensão e movimentos amplos.</p></header>
+<div class="modes-cards" data-skill-category="tracking">
 <div class="mode-card" data-mode="tracking" id="card-tracking">
             <div>
               <span class="mode-badge-tag">RASTREAMENTO</span>
@@ -245,8 +258,8 @@
 </div>
 </section>
 <section class="task-category" id="tasks-switch" aria-labelledby="tasks-switch-title">
-<header class="task-category-header"><h2 id="tasks-switch-title">Troca de alvos <span>1 task</span></h2><p>Transições rápidas entre vários alvos.</p></header>
-<div class="modes-cards">
+<header class="task-category-header"><h2 id="tasks-switch-title">Troca de alvos <span>2 tasks</span></h2><p>Transferência horizontal e transições rápidas.</p></header>
+<div class="modes-cards" data-skill-category="switch">
 <div class="mode-card" data-mode="voltaic_switch" id="card-voltaic-switch">
             <div>
               <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ VOLTAIC SPEED</span>
@@ -260,9 +273,15 @@
           </div>
 </div>
 </section>
+<section class="task-category" id="tasks-vertical" aria-labelledby="tasks-vertical-title">
+<header class="task-category-header"><h2 id="tasks-vertical-title">Verticalidade e timing <span>2 tasks</span></h2><p>Elevação, profundidade e aterrissagem.</p></header>
+<div class="modes-cards" data-skill-category="vertical">
+
+</div>
+</section>
 <section class="task-category" id="tasks-reaction" aria-labelledby="tasks-reaction-title">
 <header class="task-category-header"><h2 id="tasks-reaction-title">Reação <span>1 task</span></h2><p>Segure o ângulo e responda às passagens.</p></header>
-<div class="modes-cards">
+<div class="modes-cards" data-skill-category="reaction">
 <div class="mode-card selected" data-mode="hold_pixel" id="card-hold-pixel">
             <div>
               <span class="mode-badge-tag">TREINO DE REAÇÃO</span>
@@ -284,7 +303,7 @@
 </section>
 <section class="task-category" id="tasks-defense" aria-labelledby="tasks-defense-title">
 <header class="task-category-header"><h2 id="tasks-defense-title">Defesa e esquiva <span>3 tasks</span></h2><p>Segure o site, destrua utilidades e desvie dos ataques.</p></header>
-<div class="modes-cards">
+<div class="modes-cards" data-skill-category="defense">
 <div class="mode-card" data-mode="anti_rush" id="card-anti-rush">
             <div>
               <span class="mode-badge-tag" style="color: #70dce0; border-color: #70dce0;">DEFESA DE SITE & UTILIDADES</span>
@@ -320,7 +339,6 @@
           </div>
 </div>
 </section>
-
       </div>
     </div>
 
