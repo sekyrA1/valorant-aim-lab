@@ -90,6 +90,7 @@ export function describeTrainingMetrics(summary) {
 }
 
 export const TRAINING_METHODS = [
+  ['Strafe em todas as tasks', 'WASD está liberado em todas as tasks. Nos exercícios com disparo, alterne deslocamento, parada e clique; acompanhe o gráfico de erro para distinguir movimento e recuo. Tiros em movimento mantêm a dispersão da arma. Nos exercícios sem disparo, compense sua movimentação com o mouse para preservar o alinhamento. Compare rounds usando a mesma rotina de strafe.'],
   ['Como usar o ensino', 'Leia o objetivo e os três passos, faça um round Fácil e veja o feedback. Repita a mesma variante até cumprir a meta em três sessões; depois aumente uma variável por vez. As metas são critérios locais deste jogo, não benchmarks oficiais.'],
   ['Quiet Eye e eye-lead', 'Observe o alvo antes do mouse e use 150 ms como referência de prática, sem contar durante um duelo. No treino sem disparo, confirme 0,5 s e desvie. A task mede o retículo, não a fixação ocular; não transfira a espera de 0,5 s literalmente para um duelo competitivo.'],
   ['Sensibilidade alterada', 'Overclock usa 1,5× ou 2× temporários. A rotina hiperdiferencial usa 5 min a 2×, 5 min a 0,5× e 5 min na sens original. Compare precisão na fase nativa e mantenha apenas o que ajuda seu controle.'],

@@ -125,7 +125,7 @@ const player = { camera, currentEyeHeight: 1.7, position: camera.position, veloc
   setLookAngles() { camera.lookAt(camera.position.clone().add(new THREE.Vector3(0, 0, -1))); } };
 const weapon = { ammo: 25, refillMagOnKill() { this.ammo = 25; } };
 const game = new GameModeManager(map, bots, player, weapon, sound, {});
-game.startMode('wall_two'); assert(player.aimOnly);
+game.startMode('wall_two'); assert.equal(player.aimOnly, false);
 game.registerShot({ bot: game.skillTaskManager.targets[0] }); assert.equal(game.hits, 1); assert.equal(game.headshots, 1); assert.equal(game.score, 1000);
 game.startMode('centering'); assert.equal(game.skillTaskManager.targets.length, 1); assert.equal(game.score, 0);
 game.startMode('gridshot'); assert.equal(player.aimOnly, false); assert.equal(game.skillTaskManager.enabled, false);

@@ -6,7 +6,7 @@ import { findSafeBotPlacement } from './spawnSafety.js';
 import { DroneManager } from './drones.js';
 import { AgentPassManager } from './agentPasses.js';
 import { AntiRushManager, SITE_BOUNDS } from './antiRush.js';
-import { SKILL_TASKS, SKILL_MODE_IDS, isSkillMode } from './skillTasks.js';
+import { SKILL_MODE_IDS, isSkillMode } from './skillTasks.js';
 import { TrainingTaskManager } from './trainingTasks.js';
 
 export const MODES = {
@@ -424,7 +424,7 @@ export class GameModeManager {
 
   initSkillTask(mode) {
     const mapData = this.mapManager.buildAimlabArena();
-    this.player.aimOnly = !SKILL_TASKS[mode]?.movement;
+    this.player.aimOnly = false;
     this.player.currentEyeHeight = this.player.STAND_EYE_HEIGHT || 1.7;
     this.player.isGrounded = true;
     this.player.landingDip = 0;

@@ -20,6 +20,8 @@ Clique em **Salvar playlist** para guardar a sequência no `localStorage` deste 
 
 ## Escola de Mira e treino guiado
 
+**Movimento livre em todas as 35 tasks:** use WASD, caminhada, agachamento e salto. Nos exercícios com disparo, a dispersão por movimento e recuo continua ativa: treine strafe, parada/counter-strafe e clique observando o gráfico de erro. Nas tasks de acompanhamento sem disparo, compense seu deslocamento com o mouse. Os limites físicos de cada arena continuam valendo.
+
 A aba **Escola de Mira** ensina todas as **35 tasks**: finalidade, três passos de execução, erro comum, como melhorar e meta prática. Cada cartão de modo também tem **Aprender esta task**. Os resultados apresentam o próximo ajuste e métricas específicas; o progresso fica salvo neste navegador. Repita a mesma dificuldade e variante até cumprir a meta em três sessões antes de avançar. Essas metas são critérios deste jogo, não benchmarks oficiais.
 
 Foram adicionadas **15 tasks**: Popcorn, Tough Horizontal, Pressure Small, Underflick Drill, Angle Hold Strafe, Pillars, Sens Overclock, Metrônomo Static, Accuracy Floor, Quiet Eye, Dual Task, Target Blackout, No Crosshair, Sens Calibration e Reset entre Rounds. Todas têm Fácil/Normal/Difícil; variantes permitem escolher 120–140 BPM, carga cognitiva e multiplicadores de sensibilidade. A sensibilidade e a mira gráfica são restauradas ao sair.

@@ -123,8 +123,8 @@ const gameModeManager = new GameModeManager(
       hudModeTitle.innerText = `${SKILL_TASKS[mode]?.title || modeTitles[mode] || 'AIM TRAINER'} • ${gameModeManager.difficulty.label}`;
       hudControls.innerHTML = isSkillMode(mode)
         ? (gameModeManager.skillTaskManager.isAutomatic()
-          ? `[MOUSE] Acompanhar • ${SKILL_TASKS[mode]?.movement ? '[WASD] Mover' : 'Posição fixa'} • [ESC] Menu`
-          : `[MOUSE] Mirar • [CLIQUE] Atirar • ${SKILL_TASKS[mode]?.movement ? '[WASD] Mover' : 'Posição fixa'} • [ESC] Menu`)
+          ? '[MOUSE] Acompanhar • [WASD] Mover • [ESC] Menu'
+          : '[MOUSE] Mirar • [CLIQUE] Atirar • [WASD] Mover • [ESC] Menu')
         : standardControls;
       hudScore.innerText = 'SCORE: 0';
       hudHealth.innerText = '100';
@@ -748,7 +748,7 @@ for (const [mode, task] of Object.entries(SKILL_TASKS)) {
     <h2 class="mode-title">${task.title}</h2><p class="mode-desc">${task.desc}</p>
     ${task.variants ? `<div class="scenario-selector-pills">${task.variants.map(([id, label], index) =>
       `<button class="pill-skill-variant${index ? '' : ' active'}" data-task="${mode}" data-variant="${id}" type="button">${label}</button>`).join('')}</div>` : ''}</div>
-    <div class="mode-card-bottom"><span class="mode-stats-summary">Tempo: 60s • ${task.movement ? 'WASD liberado' : 'Posição fixa'}</span><span class="skill-adaptation">ADAPTAÇÃO</span></div>`;
+    <div class="mode-card-bottom"><span class="mode-stats-summary">Tempo: 60s • WASD liberado</span><span class="skill-adaptation">ADAPTAÇÃO</span></div>`;
   document.querySelector(`[data-skill-category="${task.category}"]`).appendChild(card);
 }
 document.querySelectorAll('.pill-skill-variant').forEach(button => button.addEventListener('click', event => {

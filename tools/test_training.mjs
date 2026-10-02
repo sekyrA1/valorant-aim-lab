@@ -9,6 +9,8 @@ import { MapManager } from '../src/maps.js';
 import { BotManager } from '../src/bots.js';
 import { CustomPlaylistStore } from '../src/customPlaylists.js';
 import { SKILL_TASKS } from '../src/skillTasks.js';
+import { PlayerController } from '../src/player.js';
+import { WeaponManager, WEAPON_TYPES } from '../src/weapons.js';
 
 assert.deepEqual(Object.keys(TASK_GUIDES).sort(), [...AVAILABLE_MODES].sort(), 'every playable task has a complete lesson');
 for (const lesson of Object.values(TASK_GUIDES)) {
@@ -107,7 +109,11 @@ const sound = { playTargetPop() {}, playGunfire() {}, playKnifeSlash() {} };
 const map = new MapManager(scene), bots = new BotManager(scene, sound);
 const game = new GameModeManager(map, bots, player, {}, sound, {});
 game.startMode('pillars'); assert.equal(player.aimOnly, false);
-game.startMode('pressure'); assert(player.aimOnly);
+game.startMode('pressure'); assert.equal(player.aimOnly, false);
+for (const mode of AVAILABLE_MODES) {
+  game.startMode(mode);
+  assert.equal(player.aimOnly, false, `${mode}: movement must remain available`);
+}
 game.startPlaylist('learn_calibration'); assert.equal(game.maxTime, 300); assert.equal(player.trainingSensitivity, 2);
 game.startPlaylistStage(1); assert.equal(player.trainingSensitivity, .5); game.startPlaylistStage(2); assert.equal(player.trainingSensitivity, 1);
 game.stopPlaylist(); game.skillTaskManager.clearAll(); assert.equal(player.trainingSensitivity, 1);
@@ -119,4 +125,39 @@ assert.equal(store.get('custom-course').stages.length, 35);
 const code = await store.createCode(); const received = new CustomPlaylistStore(catalog, { getItem() {}, setItem() {} });
 assert.equal((await received.importCode(code)).added, 1); assert.equal(received.playlists[0].stages.length, 35);
 bots.clearAll(); map.clearMap();
+// Exercise real keyboard physics and weapon spread, beyond the mode's movement flag.
+globalThis.document = { addEventListener() {} };
+globalThis.localStorage = { getItem() { return null; } };
+Object.assign(window, { innerWidth: 1280, innerHeight: 720 });
+const movingPlayer = new PlayerController(camera, {}, { playFootstep() {}, playJump() {}, playLand() {} });
+const movementGame = new GameModeManager(map, bots, movingPlayer, {}, sound, {});
+movementGame.startMode('wall_two');
+for (const [key, axis, sign] of [['KeyW', 'z', -1], ['KeyS', 'z', 1], ['KeyA', 'x', -1], ['KeyD', 'x', 1]]) {
+  movingPlayer.setPosition(0, 0, 8); movingPlayer.setLookAngles(0, 0);
+  const initial = movingPlayer.position[axis];
+  movingPlayer.handleKey(key, true);
+  for (let frame = 0; frame < 15; frame++) movingPlayer.update(1 / 60);
+  assert((movingPlayer.position[axis] - initial) * sign > .5, `${key}: actual position changes in a formerly locked task`);
+  assert(movingPlayer.getHorizontalSpeed() > 2.2);
+  movingPlayer.handleKey(key, false);
+  for (let frame = 0; frame < 15; frame++) movingPlayer.update(1 / 60);
+  assert.equal(movingPlayer.getHorizontalSpeed(), 0, 'release returns player to the firing deadzone');
+}
+const firingWeapon = Object.assign(Object.create(WeaponManager.prototype), {
+  currentWeaponType: WEAPON_TYPES.vandal, ammo: 25, isReloading: false,
+  soundManager: sound, triggerMuzzleFlash() {}, recoilAmount: 0
+});
+const shotAt = (speed, grounded = true) => {
+  firingWeapon.lastShotTime = -Infinity; firingWeapon.sprayCount = 0;
+  return firingWeapon.shoot(speed, grounded);
+};
+assert(shotAt(6.75).movementError > 0, 'running adds real bullet spread');
+assert.equal(shotAt(2.1).movementError, 0, 'braking below the deadzone removes movement error');
+assert(shotAt(0, false).movementError > 0, 'airborne shots retain movement error');
+movingPlayer.handleKey('KeyD', true);
+for (let frame = 0; frame < 15; frame++) movingPlayer.update(1 / 60);
+movingPlayer.handleKey('KeyD', false); movingPlayer.handleKey('KeyA', true);
+for (let frame = 0; frame < 6; frame++) movingPlayer.update(1 / 60);
+assert.equal(shotAt(movingPlayer.getHorizontalSpeed()).movementError, 0, 'counter-strafe exposes the precise shot window');
+movementGame.skillTaskManager.clearAll(); bots.clearAll(); map.clearMap();
 console.log('Training checks passed: all 35 guides, 10 routines, 15 mechanics/variants/difficulties, gravity, shrinking hitboxes, underflick gating, movement deadzone, beats, 95% floor, cognitive tasks, occluded hits, sensitivity restoration and shareable curriculum.');
