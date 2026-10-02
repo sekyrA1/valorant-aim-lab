@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR"><meta charset="utf-8"><title>Recuo — inspeção visual</title>
+<style>body{margin:0;background:#121c23;color:#edf4f4;font:14px system-ui}nav{position:fixed;top:15px;left:15px;z-index:2;display:flex;gap:8px}button,select{padding:10px;background:#182a32;color:white;border:1px solid #607481;border-radius:8px}#info{position:fixed;bottom:18px;left:18px;background:#101b23dc;padding:14px;border-radius:10px;line-height:1.7}#cross{position:fixed;left:50%;top:50%;width:4px;height:4px;background:#a9ff69;transform:translate(-50%,-50%)}canvas{display:block}#title{position:fixed;right:20px;top:16px;text-align:right;font-size:12px;color:#becbd0}b{color:#bdf971}</style>
+<nav><select id="weapon" aria-label="Arma"><option>vandal</option><option>phantom</option><option>guardian</option><option>spectre</option><option>classic</option><option>sheriff</option><option>operator</option></select><button id="aim">Alternar ADS</button><button id="spray">Disparar 1 pente</button><button id="burst">Rajada Classic</button><button id="clear">Limpar</button></nav><div id="title">KINETIC • INSPEÇÃO DE RECUO<br>Sem compensação do mouse • parede a 18 m</div><div id="info"></div><div id="cross"></div>
+<script type="module">
+import * as THREE from 'three';
+import { WeaponManager } from '../src/weapons.js';
+import { PlayerController } from '../src/player.js';
+import { createShotDirections } from '../src/ballistics.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color('#182831');
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);scene.add(camera);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);document.body.append(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xcfe9ff,0x63736b,2));
+scene.add(new THREE.GridHelper(50,50,0x93b0ba,0x314b58));
+const wall=new THREE.Mesh(new THREE.BoxGeometry(12,8,.2),new THREE.MeshStandardMaterial({color:0x344f5b,roughness:1}));wall.position.set(0,4,-18.1);scene.add(wall);
+for(let y=0;y<=8;y+=.25){const line=new THREE.Mesh(new THREE.BoxGeometry(12,.007,.008),new THREE.MeshBasicMaterial({color:0x54717b}));line.position.set(0,y,-17.99);scene.add(line)}
+for(let x=-6;x<=6;x+=.25){const line=new THREE.Mesh(new THREE.BoxGeometry(.007,8,.008),new THREE.MeshBasicMaterial({color:0x54717b}));line.position.set(x,4,-17.99);scene.add(line)}
+const ring=new THREE.Mesh(new THREE.RingGeometry(.16,.175,48),new THREE.MeshBasicMaterial({color:0xbdf971,side:THREE.DoubleSide}));ring.position.set(0,1.7,-17.97);scene.add(ring);
+const sound={playGunfire(){},playReload(){},playFootstep(){}};
+const weapons=new WeaponManager(camera,sound), player=new PlayerController(camera,renderer.domElement,sound);
+player.setPosition(0,0,0);player.setLookAngles(0,0);
+const marks=new THREE.Group();scene.add(marks);let firing=false, rounds=0;
+function clear(){firing=false;rounds=0;weapons.getRecoilState().reset();weapons.ammo=weapons.currentWeaponType.magSize;weapons.lastShotTime=-Infinity;weapons.lastFireInterval=0;player.setLookAngles(0,0);marks.children.slice().forEach(m=>{marks.remove(m);m.geometry.dispose();m.material.dispose()})}
+function shoot(burst=false){const shot=weapons.shoot(0,true,{burst});if(!shot)return;for(const direction of createShotDirections(player,shot)){const hit=camera.position.clone().addScaledVector(direction,(-17.95-camera.position.z)/direction.z);const mark=new THREE.Mesh(new THREE.CircleGeometry(.025,14),new THREE.MeshBasicMaterial({color:rounds<6?0xbdf971:0xffbe5d,side:THREE.DoubleSide}));mark.position.copy(hit);marks.add(mark);rounds++}if(!weapons.ammo)firing=false}
+document.querySelector('#weapon').onchange=e=>{weapons.setWeapon(e.target.value);clear()};
+document.querySelector('#aim').onclick=()=>weapons.setAiming(!weapons.isAiming);
+document.querySelector('#spray').onclick=()=>{clear();firing=true};
+document.querySelector('#burst').onclick=()=>{if(weapons.currentWeaponType.id==='classic')shoot(true)};
+document.querySelector('#clear').onclick=clear;
+let previous=performance.now();function draw(){requestAnimationFrame(draw);const now=performance.now(),dt=Math.min(.05,(now-previous)/1000);previous=now;player.update(dt,weapons);if(firing)shoot();renderer.render(scene,camera);const state=weapons.getRecoilState(),sample=state.sample(now*.001);document.querySelector('#info').innerHTML=`<b>${weapons.currentWeaponType.name} • ${weapons.isAiming?'ADS':'HIP'}</b><br>${rounds} impactos • ${(1000/weapons.getFireInterval()).toFixed(2)} tiros/s<br>Coice da câmera: ${(player.recoilPitch*180/Math.PI).toFixed(2)}° • calor: ${sample.heat.toFixed(2)}<br>Recuperação desta rajada: ${(state.duration*1000).toFixed(0)} ms`;};draw();
+window.onresize=()=>{camera.aspect=innerWidth/innerHeight;player.updateCameraFov();renderer.setSize(innerWidth,innerHeight)};
+</script></html>

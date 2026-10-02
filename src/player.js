@@ -63,7 +63,6 @@ export class PlayerController {
     // Weapon Recoil & Camera Kick
     this.recoilPitch = 0;
     this.recoilYaw = 0;
-    this.recoilRecoverySpeed = 15.0;
     this.pendingMouseYaw = 0;
     this.pendingMousePitch = 0;
 
@@ -241,18 +240,8 @@ export class PlayerController {
     this.pendingMouseYaw = 0;
     this.pendingMousePitch = 0;
 
-    // Active Spray Control Compensation:
-    // If the player pulls DOWN (movementY > 0 => deltaPitch > 0) while there is active recoil pitch,
-    // mouse input directly absorbs the recoil pitch!
-    if (deltaPitch > 0 && this.recoilPitch > 0) {
-      const absorbed = Math.min(this.recoilPitch, deltaPitch);
-      this.recoilPitch -= absorbed;
-      const remaining = deltaPitch - absorbed;
-      this.pitch -= remaining;
-    } else {
-      this.pitch -= deltaPitch;
-    }
-
+    // Raw input always changes the same base aim, including while controlling spray.
+    this.pitch -= deltaPitch;
     this.yaw -= deltaYaw;
 
     // Pitch limit: -89° to +89°
@@ -262,13 +251,20 @@ export class PlayerController {
     this.updateCameraRotation();
   }
 
-  applyRecoil(pitchKick, yawKick = 0, recoverySpeed = 15.0) {
-    this.recoilPitch += pitchKick;
-    this.recoilYaw += yawKick;
-    // Cap maximum pitch kick in a single burst
-    this.recoilPitch = Math.min(0.24, this.recoilPitch);
-    this.recoilRecoverySpeed = recoverySpeed;
-    this.updateCameraRotation();
+  getShotDirection(recoilPitch = 0, recoilYaw = 0) {
+    const maxPitch = 89 * Math.PI / 180;
+    const orientation = new THREE.Euler(THREE.MathUtils.clamp(this.pitch + recoilPitch, -maxPitch, maxPitch),
+      this.yaw - recoilYaw, 0, 'YXZ');
+    return new THREE.Vector3(0, 0, -1).applyEuler(orientation);
+  }
+
+  updateRecoil(dt, weaponManager) {
+    const target = weaponManager?.getCameraRecoil?.() || { pitch: 0, yaw: 0 };
+    const follow = 1 - Math.exp(-32 * dt);
+    this.recoilPitch += (target.pitch - this.recoilPitch) * follow;
+    this.recoilYaw += (target.yaw - this.recoilYaw) * follow;
+    if (Math.abs(this.recoilPitch) < .00001) this.recoilPitch = 0;
+    if (Math.abs(this.recoilYaw) < .00001) this.recoilYaw = 0;
   }
 
   updateCameraRotation() {
@@ -451,16 +447,8 @@ export class PlayerController {
       this.position.z
     );
 
-    // 7.5. Smooth Camera Recoil Recovery
-    if (this.recoilPitch > 0) {
-      const drop = this.recoilRecoverySpeed * dt;
-      this.recoilPitch = Math.max(0, this.recoilPitch - drop);
-    }
-    if (Math.abs(this.recoilYaw) > 0.0001) {
-      this.recoilYaw -= this.recoilYaw * Math.min(1.0, this.recoilRecoverySpeed * 0.9 * dt);
-    } else {
-      this.recoilYaw = 0;
-    }
+    // Recoil follows the same angular state as bullets, with visual damping only.
+    this.updateRecoil(dt, weaponManager);
     this.updateCameraRotation();
 
     // 8. Footsteps

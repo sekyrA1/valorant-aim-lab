@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ADS_PROFILES } from './ads.js';
+import { RECOIL_PROFILES, RecoilState, coneRadius } from './recoil.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { ProceduralArms, reloadMotion } from './armsIK.js';
@@ -249,21 +250,9 @@ export const WEAPON_TYPES = {
     reserveAmmo: Infinity,
     fireRateMs: 1000 / 9.75,
     damage: { head: 160, body: 40, legs: 34 },
-    firstShotSpread: 0.001,
+    firstShotSpread: coneRadius(.25),
     movingSpread: 0.065,
     jumpingSpread: 0.14,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.015,     // Camera upward kick impulse (rad)
-    recoilYawKick: 0.0028,      // Camera horizontal kick variance
-    recoilRecoveryRate: 15.0,   // Camera recovery speed
-    recoilResetTime: 0.36,      // Time to reset spray pattern
-    sprayVerticalClimb: 0.0045, // Vertical climb per continuous shot
-    sprayMaxClimb: 0.040,       // Max vertical climb
-    sprayHorizontalSway: 0.018, // Left-right oscillation amplitude
-    spraySwayStart: 7,          // Spray sway starts at shot 7
-    spraySwayPeriod: 7,         // Period in shots
-    firingErrorPerShot: 0.0035, // Bloom increase
-    maxFiringError: 0.042,      // Max bloom
     viewmodelPunch: 0.068,
     viewmodelFlip: 0.095,
     viewmodelRoll: 0.02,
@@ -281,21 +270,9 @@ export const WEAPON_TYPES = {
     reserveAmmo: Infinity,
     fireRateMs: 1000 / 11,
     damage: { head: 156, body: 39, legs: 33 },
-    firstShotSpread: 0.0008,
+    firstShotSpread: coneRadius(.20),
     movingSpread: 0.05,
     jumpingSpread: 0.12,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.0105,    // Smoother, tighter kick than Vandal
-    recoilYawKick: 0.002,
-    recoilRecoveryRate: 18.0,   // Snappy recovery
-    recoilResetTime: 0.28,
-    sprayVerticalClimb: 0.0032,
-    sprayMaxClimb: 0.028,
-    sprayHorizontalSway: 0.012,
-    spraySwayStart: 8,
-    spraySwayPeriod: 8,
-    firingErrorPerShot: 0.0024,
-    maxFiringError: 0.030,
     viewmodelPunch: 0.048,
     viewmodelFlip: 0.065,
     viewmodelRoll: 0.014,
@@ -313,21 +290,9 @@ export const WEAPON_TYPES = {
     reserveAmmo: Infinity,
     fireRateMs: 1000 / 5.25, // Semi-auto high caliber
     damage: { head: 195, body: 65, legs: 49 },
-    firstShotSpread: 0.0, // 100% pinpoint first shot (Valorant Guardian)
+    firstShotSpread: coneRadius(.1), // Zero first-shot error only in ADS.
     movingSpread: 0.07,
     jumpingSpread: 0.16,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.028,     // Heavy sharp single-shot kick
-    recoilYawKick: 0.0012,
-    recoilRecoveryRate: 14.0,
-    recoilResetTime: 0.26,
-    sprayVerticalClimb: 0.009,
-    sprayMaxClimb: 0.042,
-    sprayHorizontalSway: 0.006,
-    spraySwayStart: 3,
-    spraySwayPeriod: 4,
-    firingErrorPerShot: 0.0065,
-    maxFiringError: 0.035,
     viewmodelPunch: 0.082,
     viewmodelFlip: 0.135,
     viewmodelRoll: 0.012,
@@ -345,21 +310,9 @@ export const WEAPON_TYPES = {
     reserveAmmo: Infinity,
     fireRateMs: 1000 / 13.33,
     damage: { head: 78, body: 26, legs: 22 },
-    firstShotSpread: 0.0015,
+    firstShotSpread: coneRadius(.4),
     movingSpread: 0.035, // Great run and gun mobility
     jumpingSpread: 0.09,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.0075,    // Fast rapid low recoil
-    recoilYawKick: 0.0022,
-    recoilRecoveryRate: 20.0,
-    recoilResetTime: 0.22,
-    sprayVerticalClimb: 0.0022,
-    sprayMaxClimb: 0.022,
-    sprayHorizontalSway: 0.010,
-    spraySwayStart: 9,
-    spraySwayPeriod: 6,
-    firingErrorPerShot: 0.0018,
-    maxFiringError: 0.024,
     viewmodelPunch: 0.038,
     viewmodelFlip: 0.048,
     viewmodelRoll: 0.01,
@@ -375,23 +328,11 @@ export const WEAPON_TYPES = {
     category: 'Sidearm',
     magSize: 12,
     reserveAmmo: Infinity,
-    fireRateMs: 145, // semi-auto
+    fireRateMs: 1000 / 6.75, // semi-auto
     damage: { head: 78, body: 26, legs: 22 },
-    firstShotSpread: 0.001,
+    firstShotSpread: coneRadius(.4),
     movingSpread: 0.045,
     jumpingSpread: 0.11,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.0135,
-    recoilYawKick: 0.0015,
-    recoilRecoveryRate: 17.0,
-    recoilResetTime: 0.20,
-    sprayVerticalClimb: 0.0035,
-    sprayMaxClimb: 0.018,
-    sprayHorizontalSway: 0.005,
-    spraySwayStart: 4,
-    spraySwayPeriod: 4,
-    firingErrorPerShot: 0.003,
-    maxFiringError: 0.022,
     viewmodelPunch: 0.065,
     viewmodelFlip: 0.115,
     viewmodelRoll: 0.015,
@@ -409,21 +350,9 @@ export const WEAPON_TYPES = {
     reserveAmmo: Infinity,
     fireRateMs: 250, // 4 rounds/sec
     damage: { head: 159, body: 55, legs: 46 },
-    firstShotSpread: 0.0012,
+    firstShotSpread: coneRadius(.25),
     movingSpread: 0.08,
     jumpingSpread: 0.18,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.042,     // High-caliber hand cannon boom!
-    recoilYawKick: 0.0035,
-    recoilRecoveryRate: 9.0,    // Slow recovery between shots
-    recoilResetTime: 0.38,
-    sprayVerticalClimb: 0.016,
-    sprayMaxClimb: 0.052,
-    sprayHorizontalSway: 0.012,
-    spraySwayStart: 2,
-    spraySwayPeriod: 3,
-    firingErrorPerShot: 0.015,  // Heavy bloom if spammed
-    maxFiringError: 0.055,
     viewmodelPunch: 0.115,
     viewmodelFlip: 0.185,
     viewmodelRoll: 0.025,
@@ -439,23 +368,11 @@ export const WEAPON_TYPES = {
     category: 'Sniper',
     magSize: 5,
     reserveAmmo: Infinity,
-    fireRateMs: 800,
+    fireRateMs: 1000 / .6,
     damage: { head: 255, body: 150, legs: 120 },
-    firstShotSpread: 0.0001,
+    firstShotSpread: coneRadius(5),
     movingSpread: 0.25,
     jumpingSpread: 0.4,
-    // Recoil & Spray Mechanics
-    recoilPitchKick: 0.068,     // Massive sniper rifle recoil punch!
-    recoilYawKick: 0.004,
-    recoilRecoveryRate: 6.5,
-    recoilResetTime: 0.65,
-    sprayVerticalClimb: 0.045,
-    sprayMaxClimb: 0.045,
-    sprayHorizontalSway: 0,
-    spraySwayStart: 1,
-    spraySwayPeriod: 1,
-    firingErrorPerShot: 0.02,
-    maxFiringError: 0.05,
     viewmodelPunch: 0.145,
     viewmodelFlip: 0.235,
     viewmodelRoll: 0.03,
@@ -476,17 +393,6 @@ export const WEAPON_TYPES = {
     firstShotSpread: 0,
     movingSpread: 0,
     jumpingSpread: 0,
-    recoilPitchKick: 0,
-    recoilYawKick: 0,
-    recoilRecoveryRate: 20.0,
-    recoilResetTime: 0.1,
-    sprayVerticalClimb: 0,
-    sprayMaxClimb: 0,
-    sprayHorizontalSway: 0,
-    spraySwayStart: 1,
-    spraySwayPeriod: 1,
-    firingErrorPerShot: 0,
-    maxFiringError: 0,
     viewmodelPunch: 0,
     viewmodelFlip: 0,
     viewmodelRoll: 0,
@@ -508,6 +414,9 @@ export class WeaponManager {
     this.recoilAmount = 0;
     this.sprayCount = 0;
     this.timeSinceLastShot = 999;
+    this.recoilState = new RecoilState(this.currentWeaponType.id);
+    this.lastFireInterval = 0;
+    this.shotPower = 1;
     this.isReloading = false;
     this.isScoping = false;
     this.isAiming = false;
@@ -576,6 +485,11 @@ export class WeaponManager {
     this.isScoping = false;
     this.isSlashing = false;
     this.recoilAmount = 0;
+    this.recoilState = w.isMelee ? null : new RecoilState(w.id);
+    this.sprayCount = 0;
+    this.timeSinceLastShot = 999;
+    this.lastShotTime = -Infinity;
+    this.lastFireInterval = 0;
     this.equipTimer = 0;
     this.shotTimer = Infinity;
     this.reloadTimer = 0;
@@ -1035,7 +949,7 @@ export class WeaponManager {
   }
 
   // Trigger weapon shot or knife slash
-  shoot(playerMovementSpeed, isGrounded) {
+  shoot(playerMovementSpeed, isGrounded, { crouching = false, walking = false, burst = false } = {}) {
     const now = performance.now();
     const type = this.currentWeaponType;
 
@@ -1062,55 +976,44 @@ export class WeaponManager {
       this.reload();
       return null;
     }
-    if (now - this.lastShotTime < this.getFireInterval()) {
+    burst = burst && type.id === 'classic';
+    const recoilProfile = RECOIL_PROFILES[type.id];
+    const interval = burst ? recoilProfile.burstInterval : this.getFireInterval();
+    if (now - this.lastShotTime < Math.max(interval, this.lastFireInterval || 0)) {
       return null;
     }
 
     this.lastShotTime = now;
-    this.ammo--;
+    this.lastFireInterval = interval;
+    const pelletCount = burst ? Math.min(3, this.ammo) : 1;
+    this.ammo -= pelletCount;
     this.shotTimer = 0;
+    this.shotPower = burst ? 1.6 : 1;
 
     // Play gunshot sound
     this.soundManager.playGunfire(type.id);
 
     // Calculate spread error breakdown (Valorant Shooting Error mechanics)
     let movementError = 0;
+    const threshold = this.getMovementThreshold();
+    const moving = playerMovementSpeed > threshold;
     if (!isGrounded) {
-      movementError = type.jumpingSpread || 0.12;
-    } else if (playerMovementSpeed > 2.2) {
+      movementError = burst ? coneRadius(recoilProfile.burstJumpError) : type.jumpingSpread;
+    } else if (moving) {
       // Deadzone threshold is 2.2 m/s in Valorant. Error scales up to max run speed.
-      const ratio = Math.min(1.0, (playerMovementSpeed - 2.2) / (6.75 - 2.2));
-      movementError = (type.movingSpread || 0.06) * ratio;
+      const ratio = Math.min(1.0, (playerMovementSpeed - threshold) / (6.75 - threshold));
+      movementError = burst ? coneRadius(walking ? recoilProfile.burstWalkError : recoilProfile.burstRunError)
+        : type.movingSpread * ratio;
     }
-
-    // Calculate spray offset (vertical climb and horizontal sway oscillation)
-    let sprayOffsetY = 0;
-    let sprayOffsetX = 0;
-
-    if (this.sprayCount > 0) {
-      // Vertical climb scales up with continuous shots up to weapon cap
-      const climbShots = Math.min(this.sprayCount, 14);
-      sprayOffsetY = Math.min(type.sprayMaxClimb || 0.04, climbShots * (type.sprayVerticalClimb || 0.004));
-
-      // Horizontal sway (oscillates left-right after spraySwayStart shots)
-      if (this.sprayCount >= (type.spraySwayStart || 7)) {
-        const swayPeriod = type.spraySwayPeriod || 7;
-        const swayPhase = (this.sprayCount - (type.spraySwayStart || 7)) * (Math.PI * 2 / swayPeriod);
-        sprayOffsetX = Math.sin(swayPhase) * (type.sprayHorizontalSway || 0.015);
-      }
-    }
-
-    // Dynamic firing error (bloom cone)
-    const firingError = Math.min(type.maxFiringError || 0.04, this.sprayCount * (type.firingErrorPerShot || 0.003));
-    const totalSpread = (type.firstShotSpread || 0) + movementError + firingError;
-
-    // Camera punch kick values
-    const cameraPitchKick = type.recoilPitchKick || 0.015;
-    const cameraYawKick = (Math.random() - 0.5) * (type.recoilYawKick || 0.002) * 2;
-    const cameraRecovery = type.recoilRecoveryRate || 15.0;
+    const recoil = this.getRecoilState();
+    const shot = recoil.fire(now * .001, {
+      aiming: this.isAiming, crouching, walking, moving, airborne: !isGrounded, burst, pellets: pelletCount,
+    });
+    const firingError = shot.firingError;
+    const totalSpread = shot.firstSpread + movementError + firingError;
 
     // Increment continuous spray count & reset timer
-    this.sprayCount++;
+    this.sprayCount = recoil.shots;
     this.timeSinceLastShot = 0;
 
     // Viewmodel kick impulse
@@ -1127,11 +1030,10 @@ export class WeaponManager {
       totalError: totalSpread,
       damage: type.damage,
       weaponId: type.id,
-      sprayOffsetY,
-      sprayOffsetX,
-      cameraPitchKick,
-      cameraYawKick,
-      cameraRecovery,
+      recoilPitch: shot.pitch,
+      recoilYaw: shot.yaw,
+      pelletCount,
+      moving: moving || !isGrounded,
       sprayCount: this.sprayCount
     };
   }
@@ -1191,6 +1093,30 @@ export class WeaponManager {
     return this.currentWeaponType.fireRateMs / (multiplier || 1);
   }
 
+  getRecoilState() {
+    if (!this.recoilState || this.recoilState.id !== this.currentWeaponType.id) {
+      this.recoilState = new RecoilState(this.currentWeaponType.id);
+    }
+    return this.recoilState;
+  }
+
+  getMovementThreshold() {
+    return RECOIL_PROFILES[this.currentWeaponType.id]?.movementThreshold ?? 2.2;
+  }
+
+  resetRecoil() {
+    this.recoilState?.reset();
+    this.sprayCount = 0;
+    this.recoilAmount = 0;
+    this.lastShotTime = -Infinity;
+    this.lastFireInterval = 0;
+  }
+
+  getCameraRecoil() {
+    return this.currentWeaponType.isMelee ? { pitch: 0, yaw: 0 }
+      : this.getRecoilState().camera(performance.now() * .001);
+  }
+
   // Update viewmodel animations every frame
   update(dt, playerSpeed, isGrounded) {
     const profile = VIEWMODEL_PROFILES[this.currentWeaponType.id];
@@ -1210,9 +1136,9 @@ export class WeaponManager {
       }
     }
 
-    // Recoil reset time tracking: if player stops shooting longer than reset time, reset spray pattern
+    // Gun recovery keeps partial heat; it does not abruptly reset after a short burst.
     this.timeSinceLastShot += dt;
-    if (this.timeSinceLastShot >= (this.currentWeaponType.recoilResetTime || 0.35)) {
+    if (!this.currentWeaponType.isMelee && this.getRecoilState().sample(performance.now() * .001).heat < .001) {
       this.sprayCount = 0;
     }
 
@@ -1278,7 +1204,7 @@ export class WeaponManager {
     }
 
     const pull = 1 - smoothstep(this.equipTimer / profile.pull);
-    const shot = Math.pow(Math.max(0, 1 - this.shotTimer / profile.shotTime), 2);
+    const shot = Math.pow(Math.max(0, 1 - this.shotTimer / profile.shotTime), 2) * (this.shotPower || 1);
     const reloadProgress = (this.isReloading || this.isInspecting)
       ? this.reloadTimer / this.reloadDuration : 0;
     const reloadEnvelope = Math.sin(Math.PI * reloadProgress) ** 2;
@@ -1344,8 +1270,10 @@ export class WeaponManager {
   getFiringErrorRatio() {
     const type = this.currentWeaponType;
     if (type.isMelee) return 0;
-    const maxErr = type.maxFiringError || 0.04;
-    const currentErr = Math.min(maxErr, this.sprayCount * (type.firingErrorPerShot || 0.003)) + this.recoilAmount * 0.012;
+    const state = this.getRecoilState();
+    const maxErr = coneRadius(Math.max(...state.profile.bloom));
+    const currentErr = coneRadius(state.sample(performance.now() * .001).bloom);
+    if (!maxErr) return 0;
     return Math.min(1.0, currentErr / maxErr);
   }
 }

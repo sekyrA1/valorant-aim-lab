@@ -114,7 +114,7 @@ Fiel ao gráfico oficial de Erro de Disparo do Valorant:
 - **Arsenal Completo (8 Armas)**:
   - **Vandal**: 25 tiros, 160 de dano na cabeça (1-tap kill clássico).
   - **Phantom**: Silenciada, 30 tiros, alta cadência e recuo controlado.
-  - **Guardian**: Rifle DMR semi-automático de precisão cirúrgica (195 de dano na cabeça, 0.0 de erro no primeiro tiro).
+  - **Guardian**: Rifle DMR semi-automático (195 de dano na cabeça, 0,1° de erro inicial sem ADS e zero em ADS).
   - **Spectre**: Submetralhadora silenciada de altíssima cadência (13.3 tiros/s) e excelente precisão em movimento.
   - **Classic**: 12 tiros, semi-automático no botão esquerdo e **rajada de 3 tiros no botão direito**!
   - **Sheriff**: Revólver pesado de alto impacto (159 de dano na cabeça).
@@ -123,6 +123,14 @@ Fiel ao gráfico oficial de Erro de Disparo do Valorant:
 - **Troca Rápida de Slots**:
   - `[1]`: Primária | `[2]`: Secundária | `[3]`: Faca Tática.
 - **ADS das primárias**: o botão direito alterna a mira. Vandal, Phantom e Spectre usam zoom 1,25x e 90% da cadência normal; Guardian usa 1,5x sem penalidade de cadência. O zoom respeita o FOV configurado e o tamanho da tela. A arma centraliza com braços via IK, reduz bob/sway e mantém erro de movimento. Movimento em ADS a 76% da velocidade e sensibilidade proporcional ao zoom. Recarga, troca de arma, pausa e fim da task retiram o ADS.
+
+### Recuo das armas
+
+As sete armas de fogo usam curvas próprias em `src/recoil.js`: subida inicial, patamar lateral com mudanças probabilísticas e recuperação gradual, mais longa após sprays prolongados. Vandal/Phantom/Spectre têm respectivamente 6/8/5 tiros protegidos de mudanças aleatórias de lado, e transições de 600/600/280 ms. Correr aumenta o recuo vertical; agachar parado reduz o horizontal em 15%. ADS melhora a precisão inicial. A Guardian só tem erro inicial zero em ADS; a Operator exige parar e mirar, com cadência de 0,6 tiro/s. A rajada da Classic compartilha o cooldown com o tiro normal e aumenta a dispersão em movimento e no ar.
+
+A trajetória aplica o recuo uma única vez à direção base do mouse. O coice visual da câmera acompanha essa trajetória, sem duplicar o spray ou consumir a compensação manual. A aleatoriedade usa um relógio fixo, independente dos FPS.
+
+Referências: [Riot 11.08](https://playvalorant.com/en-us/news/game-updates/valorant-patch-notes-11-08/), [0.50](https://playvalorant.com/en-us/news/game-updates/valorant-patch-notes-0-50/), [6.11](https://playvalorant.com/en-us/news/game-updates/valorant-patch-notes-6-11/), [Classic 3.09](https://playvalorant.com/en-us/news/game-updates/valorant-patch-notes-3-09/) e [Operator 1.09](https://playvalorant.com/en-us/news/game-updates/valorant-patch-notes-1-09/). As curvas angulares e de dispersão são aproximações calibradas: não reproduzem integralmente a simulação proprietária do jogo. Verificação: `npm run test:recoil`; inspeção local: `/tools/recoil-preview.html`.
 
 ---
 

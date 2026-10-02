@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { soundManager } from './audio.js';
 import { CrosshairRenderer } from './crosshair.js';
 import { WeaponManager } from './weapons.js';
+import { createShotDirections } from './ballistics.js';
 import { PlayerController } from './player.js';
 import { MapManager } from './maps.js';
 import { BotManager } from './bots.js';
@@ -105,6 +106,7 @@ const gameModeManager = new GameModeManager(
   {
     onModeStarted: (mode) => {
       resetADS();
+      weaponManager.resetRecoil();
       const modeTitles = {
         [MODES.RETAKE]: 'RETAKE - ASCENT A',
         [MODES.GRIDSHOT]: 'GRIDSHOT',
@@ -534,12 +536,16 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
 }
 
 // --- SHOOTING LOGIC ---
-function performShot() {
+function performShot(burst = false) {
   if (!gameModeManager.isRunning || !playerController.isPointerLocked) return;
   if (isSkillMode(gameModeManager.currentMode) && gameModeManager.skillTaskManager.isAutomatic()) return;
 
+  playerController.applyPendingMouseInput();
+
   const playerSpeed = playerController.getHorizontalSpeed();
-  const shotInfo = weaponManager.shoot(playerSpeed, playerController.isGrounded);
+  const shotInfo = weaponManager.shoot(playerSpeed, playerController.isGrounded, {
+    crouching: playerController.isCrouching, walking: playerController.isWalking, burst,
+  });
   if (!shotInfo) return;
 
   updateAmmoUI();
@@ -563,11 +569,6 @@ function performShot() {
     return;
   }
 
-  // Apply camera recoil kick to playerController
-  if (shotInfo.cameraPitchKick) {
-    playerController.applyRecoil(shotInfo.cameraPitchKick, shotInfo.cameraYawKick, shotInfo.cameraRecovery);
-  }
-
   // Record on shooting error graph for firearms
   shootingErrorGraph.recordShot({
     movementError: shotInfo.movementError,
@@ -576,74 +577,16 @@ function performShot() {
     weaponId: shotInfo.weaponId
   });
 
-  // Calculate bullet trajectory with spray climb & horizontal sway + bloom
-  const camRight = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
-  const camUp = new THREE.Vector3().crossVectors(camRight, camDir).normalize();
-
-  // Add spray pattern offset: upward climb & horizontal oscillation
-  if (shotInfo.sprayOffsetY || shotInfo.sprayOffsetX) {
-    camDir.addScaledVector(camUp, shotInfo.sprayOffsetY);
-    camDir.addScaledVector(camRight, shotInfo.sprayOffsetX);
+  // The angular spray is applied once to raw aim. Visual camera recoil never
+  // adds another copy of the same kick to the bullet trajectory.
+  for (const direction of createShotDirections(playerController, shotInfo)) {
+    processFirearmRaycast(camera.position, direction, 120, shotInfo);
   }
-
-  // Add circular bloom spread
-  if (shotInfo.spread > 0) {
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random()) * shotInfo.spread;
-    camDir.addScaledVector(camRight, Math.cos(angle) * r);
-    camDir.addScaledVector(camUp, Math.sin(angle) * r);
-  }
-  camDir.normalize();
-
-  processFirearmRaycast(camera.position, camDir, 120, shotInfo);
 }
 
 // Classic Pistol Right-Click Shotgun Burst (3 bullets)
 function performClassicBurst() {
-  if (isSkillMode(gameModeManager.currentMode) && gameModeManager.skillTaskManager.isAutomatic()) return;
-  if (!gameModeManager.isRunning || !playerController.isPointerLocked) return;
-  if (weaponManager.ammo <= 0 || weaponManager.isReloading) {
-    weaponManager.reload();
-    return;
-  }
-
-  const bulletsToFire = Math.min(3, weaponManager.ammo);
-  weaponManager.ammo -= bulletsToFire;
-  updateAmmoUI();
-
-  soundManager.playGunfire('classic');
-  weaponManager.currentPos.z += 0.08;
-  weaponManager.currentRot.x += 0.12;
-
-  // Apply burst recoil kick
-  playerController.applyRecoil(0.024, (Math.random() - 0.5) * 0.003, 16.0);
-
-  const playerSpeed = playerController.getHorizontalSpeed();
-  const baseSpread = 0.045 + (playerSpeed > 2.0 ? 0.06 : 0);
-
-  // Record burst error on graph
-  shootingErrorGraph.recordShot({
-    movementError: (playerSpeed > 2.0 ? 0.05 : 0),
-    firingError: 0.035,
-    totalError: baseSpread,
-    weaponId: 'classic'
-  });
-
-  weaponManager.triggerMuzzleFlash();
-
-  for (let i = 0; i < bulletsToFire; i++) {
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    const rx = (Math.random() - 0.5) * baseSpread;
-    const ry = (Math.random() - 0.5) * baseSpread;
-    const rz = (Math.random() - 0.5) * baseSpread;
-    camDir.add(new THREE.Vector3(rx, ry, rz)).normalize();
-
-    processFirearmRaycast(camera.position, camDir, 80, {
-      damage: weaponManager.currentWeaponType.damage,
-      weaponId: 'classic'
-    });
-  }
+  performShot(true);
 }
 
 // --- MOUSE & POINTER LISTENERS ---
@@ -1892,7 +1835,9 @@ function animate() {
 
   // Render Dynamic Crosshair
   const horizSpeed = playerController.getHorizontalSpeed();
-  const moveErrorAmount = (!playerController.isGrounded) ? 1.0 : Math.max(0, (horizSpeed - 2.2) / 4.55);
+  const movementThreshold = weaponManager.getMovementThreshold();
+  const moveErrorAmount = (!playerController.isGrounded) ? 1.0
+    : Math.max(0, (horizSpeed - movementThreshold) / (6.75 - movementThreshold));
   const firingErrorAmount = (typeof weaponManager.getFiringErrorRatio === 'function')
     ? weaponManager.getFiringErrorRatio()
     : weaponManager.recoilAmount;
