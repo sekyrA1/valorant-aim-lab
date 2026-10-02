@@ -18,6 +18,7 @@ import { TASK_GUIDES, assessTraining } from './trainingGuides.js';
 import { CustomPlaylistStore, CustomPlaylistEditor, escapeHTML } from './customPlaylists.js';
 import { loadBotModels } from './botRig.js';
 import { initializeInterface } from './interface.js';
+import { updateSessionFrame } from './sessionLoop.js';
 
 loadBotModels().catch(error => console.error('Não foi possível carregar os bots do Blender:', error));
 
@@ -105,6 +106,12 @@ const gameModeManager = new GameModeManager(
   soundManager,
   {
     onModeStarted: (mode) => {
+      lobbyScreen.style.display = 'none';
+      hudElement.style.display = 'block';
+      pauseScreen.classList.remove('active');
+      reportModal.classList.remove('active');
+      document.getElementById('playlist-report-modal').classList.remove('active');
+      isMouseDown = false;
       resetADS();
       weaponManager.resetRecoil();
       const modeTitles = {
@@ -238,7 +245,7 @@ const gameModeManager = new GameModeManager(
       document.getElementById('cognitive-stats').textContent = `${data.hits} corretas • ${data.misses} erradas/perdidas`;
     },
     onGameOver: (summary) => {
-      resetADS();
+      leaveGameplay();
       document.getElementById('cognitive-stimulus').hidden = true;
       const lessonResult = trainingAcademy.record(summary);
       document.getElementById('report-learning-feedback').textContent = lessonResult
@@ -365,7 +372,7 @@ const gameModeManager = new GameModeManager(
     },
 
     onPlaylistCompleted: (playlist, summary) => {
-      resetADS();
+      leaveGameplay();
       document.getElementById('cognitive-stimulus').hidden = true;
       for (const stage of summary.stages) trainingAcademy.record(stage);
       refreshDifficultyUI();
@@ -537,7 +544,7 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
 
 // --- SHOOTING LOGIC ---
 function performShot(burst = false) {
-  if (!gameModeManager.isRunning || !playerController.isPointerLocked) return;
+  if (!isGameplayActive()) return;
   if (isSkillMode(gameModeManager.currentMode) && gameModeManager.skillTaskManager.isAutomatic()) return;
 
   playerController.applyPendingMouseInput();
@@ -597,12 +604,12 @@ window.addEventListener('mousedown', (e) => {
     isMouseDown = true;
     if (playerController.isPointerLocked) {
       performShot();
-    } else if (gameModeManager.isRunning && !pauseScreen.classList.contains('active') && !settingsModal.classList.contains('active')) {
+    } else if (gameModeManager.isRunning && lobbyScreen.style.display === 'none' && !pauseScreen.classList.contains('active') && !settingsModal.classList.contains('active')) {
       playerController.requestPointerLock();
     }
   } else if (e.button === 2) { // Right click
     e.preventDefault();
-    if (playerController.isPointerLocked) {
+    if (isGameplayActive()) {
       const wId = weaponManager.currentWeaponType.id;
       if (weaponManager.currentWeaponType.slot === 1) {
         weaponManager.setAiming(!weaponManager.isAiming);
@@ -633,7 +640,7 @@ window.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // Reload Key and Weapon Slot Switching Keys (1, 2, 3)
 window.addEventListener('keydown', (e) => {
-  if (!playerController.isPointerLocked) return;
+  if (!isGameplayActive()) return;
 
   if (e.code === 'KeyR') {
     weaponManager.reload();
@@ -656,6 +663,30 @@ window.addEventListener('keydown', (e) => {
 // Game Pause helper & state synchronization
 let lastPauseToggleTime = 0;
 
+function isGameplayActive() {
+  return gameModeManager.isRunning && playerController.isPointerLocked
+    && lobbyScreen.style.display === 'none'
+    && ![pauseScreen, settingsModal, reportModal, performanceModal,
+      document.getElementById('playlist-report-modal')].some(modal => modal?.classList.contains('active'));
+}
+
+function leaveGameplay() {
+  gameModeManager.stopSession();
+  isMouseDown = false;
+  resetADS();
+  vfxManager.clear();
+  clearTimeout(stageTransitionTimeout);
+  stageTransitionTimeout = null;
+  clearTimeout(killBannerTimeout);
+  killBannerTimeout = null;
+  killBanner.classList.remove('active');
+  document.getElementById('stage-transition-overlay').style.display = 'none';
+  document.getElementById('cognitive-stimulus').hidden = true;
+  defuseOverlay.style.display = 'none';
+  damageVignette.style.opacity = '0';
+  droneIndicators.update([], camera, false, window.innerWidth, window.innerHeight);
+}
+
 function setGamePaused(paused) {
   lastPauseToggleTime = performance.now();
   if (paused) {
@@ -666,6 +697,7 @@ function setGamePaused(paused) {
       document.exitPointerLock();
     }
   } else {
+    if (!gameModeManager.isRunning || lobbyScreen.style.display !== 'none') return;
     pauseScreen.classList.remove('active');
     playerController.requestPointerLock();
   }
@@ -857,24 +889,14 @@ document.getElementById('btn-pause-settings').addEventListener('click', () => {
 });
 
 document.getElementById('btn-pause-lobby').addEventListener('click', () => {
-  resetADS();
+  leaveGameplay();
   soundManager.playUIClick();
-  document.getElementById('cognitive-stimulus').hidden = true;
-  gameModeManager.isRunning = false;
-  gameModeManager.stopPlaylist();
   refreshDifficultyUI();
   const plHud = document.getElementById('playlist-hud-container');
   if (plHud) plHud.style.display = 'none';
   pauseScreen.classList.remove('active');
   hudElement.style.display = 'none';
   lobbyScreen.style.display = 'flex';
-  gameModeManager.droneManager.clearAll();
-  gameModeManager.agentPassManager.clearAll();
-  gameModeManager.antiRushManager.clearAll();
-  gameModeManager.skillTaskManager.clearAll();
-  playerController.aimOnly = false;
-  botManager.clearAll();
-  mapManager.clearMap();
   try {
     if (document.pointerLockElement) {
       document.exitPointerLock();
@@ -896,6 +918,7 @@ if (btnPauseEndTask) {
 
 // Unified helper to return to Lobby Menu from Report Modals
 function returnToLobbyFromReport() {
+  leaveGameplay();
   soundManager.playUIClick();
   if (reportModal) reportModal.classList.remove('active');
   const plReportModal = document.getElementById('playlist-report-modal');
@@ -905,17 +928,7 @@ function returnToLobbyFromReport() {
   hudElement.style.display = 'none';
   pauseScreen.classList.remove('active');
   lobbyScreen.style.display = 'flex';
-  document.getElementById('cognitive-stimulus').hidden = true;
-  gameModeManager.isRunning = false;
-  gameModeManager.stopPlaylist();
   refreshDifficultyUI();
-  gameModeManager.droneManager.clearAll();
-  gameModeManager.agentPassManager.clearAll();
-  gameModeManager.antiRushManager.clearAll();
-  gameModeManager.skillTaskManager.clearAll();
-  playerController.aimOnly = false;
-  botManager.clearAll();
-  mapManager.clearMap();
   try {
     if (document.pointerLockElement) {
       document.exitPointerLock();
@@ -1800,28 +1813,19 @@ function animate() {
   const dt = Math.min(0.1, (now - lastFrameTime) / 1000); // capped delta time
   lastFrameTime = now;
 
-  const isPaused = pauseScreen.classList.contains('active');
+  const gameplayActive = isGameplayActive();
 
   // Auto-fire while holding left-mouse (for automatic weapons: Vandal, Phantom, Spectre)
   const currentWeaponId = weaponManager.currentWeaponType.id;
   const isAutomatic = (currentWeaponId === 'vandal' || currentWeaponId === 'phantom' || currentWeaponId === 'spectre');
-  if (isMouseDown && playerController.isPointerLocked && isAutomatic && !isPaused) {
+  if (isMouseDown && isAutomatic && gameplayActive) {
     performShot();
   }
 
-  if (!isPaused) {
-    // Update Player Controller
-    playerController.update(dt, weaponManager);
-
-    // Update Game Mode, Spike, AI
-    gameModeManager.update(dt);
-
-    // Update VFX Particles, Sparks, Smoke, Tracers & Decals
-    vfxManager.update(dt);
-  }
+  updateSessionFrame(dt, gameModeManager, vfxManager, !gameplayActive);
 
   // Update HUD Timer
-  if (gameModeManager.isRunning && !isPaused) {
+  if (isGameplayActive()) {
     hudTimer.innerText = Math.max(0, Math.ceil(gameModeManager.sessionTimer));
   }
 
@@ -1830,7 +1834,7 @@ function animate() {
     ? gameModeManager.antiRushManager.utilities.filter(utility => utility.kind === 'drone')
     : gameModeManager.droneManager.drones;
   droneIndicators.update(indicatorDrones, camera,
-    gameModeManager.isRunning && !isPaused && [MODES.DRONES, MODES.ANTI_RUSH].includes(gameModeManager.currentMode),
+    isGameplayActive() && [MODES.DRONES, MODES.ANTI_RUSH].includes(gameModeManager.currentMode),
     window.innerWidth, window.innerHeight);
 
   // Render Dynamic Crosshair

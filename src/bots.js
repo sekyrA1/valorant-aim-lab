@@ -709,7 +709,7 @@ export class BotManager {
   update(dt, playerPosition, onPlayerDamaged, colliders = []) {
     // Update tracking targets
     this.bots.forEach(bot => {
-      if (bot.isDead) return;
+      if (bot.isDead || bot.visualDisposed) return;
 
       if (bot.type === 'tracking_target') {
         bot.group.position.x += bot.trackDir * bot.trackSpeed * dt;
@@ -856,6 +856,7 @@ export class BotManager {
               if (onPlayerDamaged) {
                 // Inflict damage to player (16-24 dmg)
                 onPlayerDamaged(Math.round((Math.floor(Math.random() * 9) + 16) * this.difficulty.botDamage));
+                if (bot.visualDisposed) return;
               }
             }
           }

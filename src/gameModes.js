@@ -315,6 +315,7 @@ export class GameModeManager {
 
   startMode(modeId) {
     if (!AVAILABLE_MODES.includes(modeId)) modeId = MODES.HOLD_PIXEL;
+    this.stopSession({ stopPlaylist: false, clearMap: false });
     if (!this.activePlaylist) this.customDuration = null;
     this.currentMode = modeId;
     this.isRunning = true;
@@ -339,12 +340,6 @@ export class GameModeManager {
     this.ypracSpraySetIndex = 0;
     this.ypracDuelIndex = 0;
 
-    this.droneManager.clearAll();
-    this.agentPassManager.clearAll();
-    this.antiRushManager.clearAll();
-    this.skillTaskManager.clearAll();
-    this.player.aimOnly = false;
-    this.botManager.clearAll();
     this.botManager.difficulty = this.difficulty;
 
     if (isSkillMode(modeId)) {
@@ -1396,7 +1391,7 @@ export class GameModeManager {
           });
         }
 
-        setTimeout(() => {
+        this.scheduleModeAction(() => {
           if (this.isRunning && this.currentMode === MODES.YPRAC_PREAIM) {
             this.startYpracPreaimCheckpoint(this.ypracPreaimIndex + 1);
           }
@@ -1415,7 +1410,7 @@ export class GameModeManager {
               text: `★ SPRAY TRANSFER LIMPO EM ${setDuration}s! (+2500 PTS)`
             });
           }
-          setTimeout(() => {
+          this.scheduleModeAction(() => {
             if (this.isRunning && this.currentMode === MODES.YPRAC_SPRAY) {
               this.startYpracSpraySet(this.ypracSpraySetIndex + 1);
             }
@@ -1447,7 +1442,7 @@ export class GameModeManager {
             text: `${duelTier} (${duelMs}ms | ${horizSpeed.toFixed(1)} m/s) • PRÓXIMO DUELO...`
           });
         }
-        setTimeout(() => {
+        this.scheduleModeAction(() => {
           if (this.isRunning && this.currentMode === MODES.YPRAC_PEEK_DUEL) {
             this.startYpracDuelRound(this.ypracDuelIndex + 1);
           }
@@ -1470,7 +1465,7 @@ export class GameModeManager {
                 text: `★ ONDA ${this.defenseWave} DEFENDIDA! REFORÇOS EM 2s (+25 SHIELD)`
               });
             }
-            setTimeout(() => {
+            this.scheduleModeAction(() => {
               if (this.isRunning && this.currentMode === MODES.YPRAC_DEFENSE) {
                 this.startDefenseWave(this.defenseWave + 1);
               }
@@ -1604,6 +1599,7 @@ export class GameModeManager {
     }
 
     // Update targets & AI with map colliders for line-of-sight obstruction checks
+    if (!this.isRunning) return;
     this.botManager.update(
       dt,
       this.player.position,
@@ -1759,13 +1755,47 @@ export class GameModeManager {
     }
   }
 
-  endGame(isVictory, message) {
+  scheduleModeAction(action, delay) {
+    this.modeTimeouts ??= new Set();
+    const timeout = setTimeout(() => {
+      this.modeTimeouts.delete(timeout);
+      if (this.isRunning) action();
+    }, delay);
+    this.modeTimeouts.add(timeout);
+  }
+
+  stopSession({ stopPlaylist = true, clearMap = true } = {}) {
     this.isRunning = false;
     this.player.aimOnly = false;
-    if (isSkillMode(this.currentMode)) this.skillTaskManager.clearAll();
-    if (this.currentMode === MODES.DRONES) this.droneManager.clearAll();
-    if (this.currentMode === MODES.JETT_NEON) this.agentPassManager.clearAll();
-    if (this.currentMode === MODES.ANTI_RUSH) this.antiRushManager.clearAll();
+    for (const timeout of this.modeTimeouts || []) clearTimeout(timeout);
+    this.modeTimeouts?.clear();
+    clearTimeout(this.playlistTransitionTimeout);
+    this.playlistTransitionTimeout = null;
+    if (stopPlaylist) this.stopPlaylist();
+    this.isDefusing = false;
+    this.defuseKeyPressed = false;
+    this.player.resetInput?.();
+    this.player.velocity?.set(0, 0, 0);
+    this.weapon.setAiming?.(false, true);
+    this.player.setAimZoom?.(1);
+    this.weapon.resetRecoil?.();
+    this.droneManager.clearAll();
+    this.agentPassManager.clearAll();
+    this.antiRushManager.clearAll();
+    this.skillTaskManager.clearAll();
+    this.botManager.clearAll();
+    this.activeGridTargets = [];
+    this.activeStaticTargets = [];
+    this.currentHoldBot = null;
+    this.currentPreaimBot = null;
+    if (clearMap) {
+      this.mapManager.clearMap();
+      this.player.setColliders([]);
+    }
+  }
+
+  endGame(isVictory, message) {
+    if (!this.isRunning) return;
     const learningMetrics = isSkillMode(this.currentMode) ? {
       variant: this.skillTaskManager.variant, automatic: this.skillTaskManager.isAutomatic(),
       tracking: this.skillTaskManager.isTracking(), timeOnTarget: this.skillTaskManager.timeOnTarget,
@@ -1775,6 +1805,7 @@ export class GameModeManager {
     const elapsedSeconds = Math.max(0, this.maxTime - this.sessionTimer);
     const trackingCoverage = this.currentMode === MODES.VOLTAIC_SMOOTH && this.smoothbotTotalTime > 0
       ? Math.round(100 * this.smoothbotTimeOnTarget / this.smoothbotTotalTime) : undefined;
+    this.stopSession({ stopPlaylist: false, clearMap: false });
 
     // Handle playlist progression
     if (this.activePlaylist) {

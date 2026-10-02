@@ -164,7 +164,7 @@ export class PlayerController {
 
   initInputListeners() {
     window.addEventListener('keydown', (e) => {
-      this.handleKey(e.code, true);
+      if (this.isPointerLocked) this.handleKey(e.code, true);
     });
 
     window.addEventListener('keyup', (e) => {
@@ -174,8 +174,7 @@ export class PlayerController {
     document.addEventListener('pointerlockchange', () => {
       const isLocked = document.pointerLockElement === this.domElement;
       if (!isLocked) {
-        this.pendingMouseYaw = 0;
-        this.pendingMousePitch = 0;
+        this.resetInput();
       }
       this.isPointerLocked = isLocked;
     });
@@ -281,6 +280,14 @@ export class PlayerController {
 
   setColliders(colliders) {
     this.colliders = colliders;
+  }
+
+  resetInput() {
+    for (const key of Object.keys(this.keys)) this.keys[key] = false;
+    this.velocity.set(0, 0, 0);
+    this.pendingMouseYaw = 0;
+    this.pendingMousePitch = 0;
+    this.footstepTimer = 0;
   }
 
   setPosition(x, y, z) {
