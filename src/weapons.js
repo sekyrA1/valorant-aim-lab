@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ADS_PROFILES } from './ads.js';
+import { ADS_PROFILES, aimPose } from './ads.js';
 import { RECOIL_PROFILES, RecoilState, coneRadius } from './recoil.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
@@ -1121,6 +1121,7 @@ export class WeaponManager {
   update(dt, playerSpeed, isGrounded) {
     const profile = VIEWMODEL_PROFILES[this.currentWeaponType.id];
     const ads = ADS_PROFILES[this.currentWeaponType.id];
+    const adsPose = aimPose(ads);
     this.aimBlend += ((this.isAiming ? 1 : 0) - this.aimBlend) * (1 - Math.exp(-dt * 22));
     if (Math.abs(this.aimBlend - (this.isAiming ? 1 : 0)) < .001) this.aimBlend = this.isAiming ? 1 : 0;
     this.aimZoom = 1 + ((ads?.zoom || 1) - 1) * this.aimBlend;
@@ -1236,20 +1237,20 @@ export class WeaponManager {
     const vmRoll = (this.currentWeaponType.viewmodelRoll || 0.015) * shot * stability;
 
     // Equip (pull), shot impulse, reload and knife flourish layer over idle.
-    // The iron sight axis is centered on the camera; IK follows the moved grips.
+    // The front sight stays centered while the receiver sits lower; IK follows the grips.
     const targetX = this.basePos.x * (1 - this.aimBlend) + (this.swayCurrent.x + bobX) * stability + slashOffsetX
       + .09 * pull - .025 * shot * stability;
-    const targetY = THREE.MathUtils.lerp(this.basePos.y, -(ads?.sightY || .121), this.aimBlend)
+    const targetY = THREE.MathUtils.lerp(this.basePos.y, adsPose?.y ?? this.basePos.y, this.aimBlend)
       + (this.swayCurrent.y - bobY) * stability + slashOffsetY
       - .32 * pull - profile.reloadDrop * reloadEnvelope - vmPunch * 0.35;
-    const targetZ = this.basePos.z + .08 * pull + vmPunch;
+    const targetZ = THREE.MathUtils.lerp(this.basePos.z, adsPose?.z ?? this.basePos.z, this.aimBlend) + .08 * pull + vmPunch;
 
     const blend = 1 - Math.exp(-dt * 22);
     this.currentPos.x += (targetX - this.currentPos.x) * blend;
     this.currentPos.y += (targetY - this.currentPos.y) * blend;
     this.currentPos.z += (targetZ - this.currentPos.z) * blend;
 
-    const targetRotX = this.baseRot.x - this.swayCurrent.y * 1.2 * stability
+    const targetRotX = this.baseRot.x + (adsPose?.pitch || 0) * this.aimBlend - this.swayCurrent.y * 1.2 * stability
       + vmFlip + .23 * pull;
     const targetRotY = this.baseRot.y + this.swayCurrent.x * 1.2 * stability + slashRotY
       + .18 * pull + 1.2 * inspectSpin;
