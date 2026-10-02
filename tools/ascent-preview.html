@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Ascent A — inspeção visual</title>
+<style>body{margin:0;background:#101820;font:14px system-ui;color:white}nav{position:fixed;top:12px;left:12px;display:flex;gap:8px;z-index:2}button{background:#1c2c37;color:white;border:1px solid #7793a2;padding:10px;cursor:pointer}canvas{display:block}#view{position:fixed;bottom:12px;left:12px;background:#14212dcc;padding:10px}</style>
+<nav><button data-view="overview">Visão geral</button><button data-view="main">A Main → site</button><button data-view="hell">Hell → A Main</button><button data-view="bricks">Bricks → A Main</button><button id="smoke">Smokes: desligadas</button><button data-view="inside">Dentro da smoke</button></nav>
+<div id="view">Visão geral</div>
+<script type="module">
+import * as THREE from 'three';
+import { MapManager } from '../src/maps.js';
+import { AntiRushManager } from '../src/antiRush.js';
+import { ASCENT_A } from '../src/ascentSite.js';
+const scene = new THREE.Scene(), map = new MapManager(scene);
+map.buildAntiRushSite();
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const camera = new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,150);
+const views = {overview:[[29,32,34],[0,0,-4]],main:[[-6,1.7,12],[0,3,-12]],hell:[[0,2.75,-20],[-6,2,16]],bricks:[[14,1.7,9],[-6,2,16]],inside:[[-6,2.1,16],[0,3,-12]]};
+const rush = new AntiRushManager(scene,null,null);
+function change(name){camera.position.set(...views[name][0]);camera.lookAt(...views[name][1]);document.querySelector('#view').textContent=document.querySelector(`[data-view="${name}"]`).textContent;renderer.render(scene,camera)}
+function smokes(){if(rush.smokes.length){rush.clearAll();document.querySelector('#smoke').textContent='Smokes: desligadas'}else{rush.addSmoke(new THREE.Vector3(ASCENT_A.mainX,2.1,16),3.8,Infinity,true);rush.addSmoke(new THREE.Vector3(0,2.1,5.5),2.5,Infinity);document.querySelector('#smoke').textContent='Smokes: opacas'}renderer.render(scene,camera)}
+document.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{if(button.dataset.view==='inside'&&!rush.smokes.length)smokes();change(button.dataset.view)});
+document.querySelector('#smoke').onclick=smokes;
+window.onresize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.render(scene,camera)};
+change('overview');
+</script>
+</html>

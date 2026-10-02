@@ -7,6 +7,7 @@ import { AntiRushManager, createRushSequence, findRushPath } from '../src/antiRu
 import { isBotPlacementClear } from '../src/spawnSafety.js';
 import { GameModeManager, MODES } from '../src/gameModes.js';
 import { PlayerController } from '../src/player.js';
+import { ASCENT_A, rushGroundHeight } from '../src/ascentSite.js';
 
 let seed = 1327;
 const random = () => { seed = (1664525 * seed + 1013904223) >>> 0; return seed / 4294967296; };
@@ -31,7 +32,7 @@ const scene = new THREE.Scene();
 const map = new MapManager(scene);
 map.buildAntiRushSite();
 assert.equal(map.spikeObject, null, 'anti-rush has no planted spike');
-const spawn = new THREE.Vector3(0, 0, 18.7);
+const spawn = new THREE.Vector3(ASCENT_A.mainX, 0, 18.7);
 for (const target of [new THREE.Vector3(-8, 0, -12), new THREE.Vector3(8, 0, -3), new THREE.Vector3(0, 0, -19)]) {
   const path = findRushPath(spawn, target, map.colliders);
   assert(path.length > 0, 'attackers can reach positions around cover');
@@ -46,16 +47,34 @@ const game = new GameModeManager(map, bots, player, {}, sound, {});
 game.startMode(MODES.ANTI_RUSH);
 assert(player.colliders.length > map.colliders.length, 'movement barriers are player-only');
 assert(player.colliders !== map.colliders);
-for (const [x, z, axis, speed] of [[16.5, 9, 'x', 6], [-16.5, 9, 'x', -6], [0, 14.45, 'z', 6], [0, -19.8, 'z', -6]]) {
-  const defender = { position: new THREE.Vector3(x, 1.7, z), velocity: new THREE.Vector3(),
+for (const [x, z, axis, speed] of [[13.5, 9, 'x', 6], [-13.5, 9, 'x', -6], [-6, 14.45, 'z', 6], [0, -19.8, 'z', -6]]) {
+  const defender = { position: new THREE.Vector3(x, rushGroundHeight(x, z, map.colliders) + 1.7, z), velocity: new THREE.Vector3(),
     colliders: player.colliders, playerRadius: .4, currentEyeHeight: 1.7 };
   defender.velocity[axis] = speed;
   PlayerController.prototype.resolveHorizontalCollisions.call(defender, axis);
-  assert(defender.position.x >= -16.2 - 1e-7 && defender.position.x <= 16.2 + 1e-7);
+  assert(defender.position.x >= -13.2 - 1e-7 && defender.position.x <= 13.2 + 1e-7);
   assert(defender.position.z >= -19.6 - 1e-7 && defender.position.z <= 14.1 + 1e-7);
 }
-assert(game.antiRushManager.smokeBlocks(new THREE.Vector3(0, 2, 12), new THREE.Vector3(0, 2, 20)));
+assert(game.antiRushManager.smokeBlocks(new THREE.Vector3(ASCENT_A.mainX, 2, 12), new THREE.Vector3(ASCENT_A.mainX, 2, 20)));
+const smokeMaterial = game.antiRushManager.smokes[0].group.children[0].material;
+assert.equal(smokeMaterial.transparent, false, 'smoke uses opaque rendering');
+assert.equal(smokeMaterial.opacity, 1);
+assert.equal(smokeMaterial.depthWrite, true, 'smoke occludes geometry behind it');
+assert.equal(rushGroundHeight(0, -10, map.colliders), ASCENT_A.siteHeight);
+assert.equal(rushGroundHeight(0, 3, map.colliders), 0);
+for (const point of findRushPath(spawn, new THREE.Vector3(0, 0, -19), map.colliders)) {
+  assert.equal(point.y, rushGroundHeight(point.x, point.z, map.colliders, .48), 'navigation follows the raised site and steps');
+}
 const rush = game.antiRushManager;
+let effects;
+const outsidePosition = player.position.clone();
+rush.callbacks.onEffects = value => { effects = value; };
+player.position.copy(rush.smokes[0].group.position);
+rush.update(.01);
+assert.equal(effects.smoke, 1, 'inside smoke fully hides the world');
+player.position.copy(outsidePosition);
+rush.update(.01);
+assert.equal(effects.smoke, 0, 'leaving the smoke restores the view');
 rush.spawnUtility('flash');
 const flash = rush.utilities[0];
 assert(rush.applyUtilityHit(flash)?.isKilled, 'flash is destructible');

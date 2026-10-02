@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { isBotPlacementClear } from './spawnSafety.js';
+import { ASCENT_A, rushGroundHeight } from './ascentSite.js';
 
-export const SITE_BOUNDS = Object.freeze({ minX: -16.6, maxX: 16.6, minZ: -20, maxZ: 14.5 });
+export const SITE_BOUNDS = Object.freeze({ minX: -13.6, maxX: 13.6, minZ: -20, maxZ: 14.5 });
 
 // Optional support varies, while Jett's smoke always precedes her dash and the follow-up entry.
 export function createRushSequence(difficulty, random = Math.random) {
@@ -31,8 +32,8 @@ export function createRushSequence(difficulty, random = Math.random) {
 
 // Four-way navigation keeps rushers outside solid cover, including diagonal crate corners.
 export function findRushPath(start, target, colliders) {
-  const clear = (x, z) => x >= -16 && x <= 16 && z >= -20 && z <= 19 &&
-    isBotPlacementClear({ x, y: 0, z }, colliders, .48, 2.25);
+  const clear = (x, z) => x >= -13 && x <= 13 && z >= -20 && z <= 19 &&
+    isBotPlacementClear({ x, y: rushGroundHeight(x, z, colliders, .48), z }, colliders, .48, 2.25);
   const nearest = point => {
     let best = null;
     let distance = Infinity;
@@ -52,7 +53,9 @@ export function findRushPath(start, target, colliders) {
     const current = queue[index];
     if (key(current) === key(goal)) {
       const path = [];
-      for (let p = current; p; p = visited.get(key(p))) path.unshift(new THREE.Vector3(p.x, 0, p.z));
+      for (let p = current; p; p = visited.get(key(p))) {
+        path.unshift(new THREE.Vector3(p.x, rushGroundHeight(p.x, p.z, colliders, .48), p.z));
+      }
       if (path.length > 1 && Math.hypot(start.x - path[0].x, start.z - path[0].z) < .75 &&
           [.25, .5, .75, 1].every(t => clear(
             THREE.MathUtils.lerp(start.x, path[1].x, t), THREE.MathUtils.lerp(start.z, path[1].z, t)
@@ -61,7 +64,16 @@ export function findRushPath(start, target, colliders) {
     }
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const next = { x: current.x + dx, z: current.z + dz };
-      if (!visited.has(key(next)) && clear(next.x, next.z) &&
+      // Sample each grid edge: the staircase is passable; raised planter faces are not.
+      let previousHeight = rushGroundHeight(current.x, current.z, colliders, .48);
+      const walkable = [.25, .5, .75, 1].every(t => {
+        const x = current.x + dx * t, z = current.z + dz * t;
+        const height = rushGroundHeight(x, z, colliders, .48);
+        const canStep = height - previousHeight <= .26 && clear(x, z);
+        previousHeight = height;
+        return canStep;
+      });
+      if (!visited.has(key(next)) && walkable && clear(next.x, next.z) &&
           clear(current.x + dx * .5, current.z + dz * .5)) {
         visited.set(key(next), current);
         queue.push(next);
@@ -138,15 +150,26 @@ export class AntiRushManager {
     this.events = createRushSequence(this.difficulty);
     this.eventIndex = 0;
     this.jettLanding = new THREE.Vector3((Math.random() < .5 ? -1 : 1) * (1.5 + Math.random()), 0, 5.5 + Math.random());
-    this.addSmoke(new THREE.Vector3(0, 2.1, 16), 3.8, Infinity, true);
+    this.addSmoke(new THREE.Vector3(ASCENT_A.mainX, 2.1, ASCENT_A.mainZ), 3.8, Infinity, true);
     this.prompt(`ONDA ${this.wave} • POSICIONE-SE NO A • DESTRUA AS UTILIDADES`, 'waiting');
   }
 
   addSmoke(center, radius, lifetime, allied = false) {
     const group = new THREE.Group();
-    const material = new THREE.MeshStandardMaterial({ color: allied ? 0x8b91a1 : 0xc4d5e4,
-      roughness: 1, transparent: true, opacity: .97, depthWrite: false, side: THREE.DoubleSide });
-    const sphere = new THREE.Mesh(new THREE.SphereGeometry(radius, 28, 20), material);
+    const material = new THREE.MeshStandardMaterial({ color: allied ? 0x8993a7 : 0xb6c6d7,
+      roughness: 1, transparent: false, opacity: 1, depthWrite: true, vertexColors: true,
+      side: THREE.DoubleSide });
+    const geometry = new THREE.SphereGeometry(radius, 48, 32);
+    const positions = geometry.getAttribute('position');
+    const colors = [];
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
+      const shade = .83 + .12 * Math.sin(x * 2.5 + Math.sin(z * 3)) * Math.cos(y * 2.2);
+      colors.push(shade, shade, shade);
+    }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.name = allied ? 'Allied opaque Main smoke' : 'Jett opaque smoke';
     group.add(sphere);
     group.position.copy(center);
     this.scene.add(group);
@@ -176,10 +199,10 @@ export class AntiRushManager {
       part(new THREE.TorusGeometry(.3, .035, 6, 24));
     }
     material.dispose();
-    group.position.set((Math.random() - .5) * 2, 2.3, 19);
-    if (kind === 'recon') group.position.x = 0;
+    group.position.set(ASCENT_A.mainX + (Math.random() - .5) * 2, 2.3, 19);
+    if (kind === 'recon') group.position.x = ASCENT_A.mainX;
     this.scene.add(group);
-    const target = kind === 'recon' ? new THREE.Vector3((Math.random() < .5 ? -1 : 1) * 16.8, 4.7, 0) :
+    const target = kind === 'recon' ? new THREE.Vector3((Math.random() < .5 ? -1 : 1) * 13.7, 4.7, 0) :
       kind === 'flash' ? new THREE.Vector3((Math.random() - .5) * 5, 3.2, 9) : new THREE.Vector3(0, 2.2, 1);
     const utility = { type: 'rush_utility', kind, label: kind === 'drone' ? 'DRONE' : kind === 'recon' ? 'RECON' : 'FLASH',
       group, isDead: false, age: 0, origin: group.position.clone(), target, scanTimer: 0, scanned: false };
@@ -190,7 +213,7 @@ export class AntiRushManager {
   }
 
   spawnEnemy(label, lane = 1, dash = false) {
-    const x = (Math.random() - .5) * 2.5;
+    const x = ASCENT_A.mainX + (Math.random() - .5) * 2.5;
     const bot = this.botManager.spawnTacticalBot(x, 0, 18.7, Math.PI, false);
     bot.group.scale.setScalar(this.difficulty.botScale);
     bot.label = label;
@@ -212,6 +235,7 @@ export class AntiRushManager {
     const searchRoute = [[side * 8, -2], [side * 10, -11], [0, -18],
       [-side * 9, -12], [-side * 10, -2], [0, 2]].map(([x, z]) => new THREE.Vector3(x, 0, z));
     this.enemies.push({ bot, phase: dash ? 'dash' : 'entry', path: [], pathTimer: 0, fireTimer: .7,
+      dashClearedMain: false,
       searchRoute, searchIndex: 0, searchWait: .65,
       destination: this.jettLanding.clone(),
       exitDestination: new THREE.Vector3(lane * (4 + Math.random() * 3), 0, 1),
@@ -327,11 +351,17 @@ export class AntiRushManager {
     if (bot.isDead) return;
     const p = bot.group.position;
     if (enemy.phase === 'dash') {
-      const direction = enemy.destination.clone().sub(p); direction.y = 0;
+      // Clear the corridor in a straight line before turning toward Jett's landing smoke.
+      const dashTarget = enemy.dashClearedMain ? enemy.destination : new THREE.Vector3(ASCENT_A.mainX, 0, ASCENT_A.mainZ - 1.5);
+      const direction = dashTarget.clone().sub(p); direction.y = 0;
       const distance = direction.length();
       const step = Math.min(distance, dt * 24 * this.difficulty.speed);
       if (distance > .01) p.addScaledVector(direction.normalize(), step);
-      if (distance <= step + .1) enemy.phase = 'smokeHold';
+      p.y = rushGroundHeight(p.x, p.z, this.colliders);
+      if (distance <= step + .1) {
+        if (enemy.dashClearedMain) enemy.phase = 'smokeHold';
+        else enemy.dashClearedMain = true;
+      }
       bot.torsoMesh.rotation.x = -.4;
       bot.group.rotation.y = Math.atan2(direction.x, direction.z);
       return;
@@ -388,7 +418,8 @@ export class AntiRushManager {
       else {
         const speed = enemy.phase === 'entry' ? 6.2 : enemy.phase === 'exit' ? 5.0 : (bot.label === 'JETT' ? 4.8 : 3.4);
         const step = Math.min(distance, dt * speed * this.difficulty.speed);
-        const next = p.clone().addScaledVector(delta.normalize(), step); next.y = 0;
+        const next = p.clone().addScaledVector(delta.normalize(), step);
+        next.y = rushGroundHeight(next.x, next.z, this.colliders);
         if (isBotPlacementClear(next, this.colliders, .45, 2.25)) p.copy(next);
         else enemy.pathTimer = 0;
         bot.group.rotation.y = Math.atan2(delta.x, delta.z);
@@ -436,7 +467,7 @@ export class AntiRushManager {
       if (this.betweenWaves <= 0) this.beginWave();
     }
     const insideSmoke = this.smokes.some(smoke => this.player.position.distanceTo(smoke.group.position) < smoke.radius);
-    this.callbacks.onEffects?.({ flash: Math.min(1, this.flashLeft * 2), smoke: insideSmoke ? .82 : 0,
+    this.callbacks.onEffects?.({ flash: Math.min(1, this.flashLeft * 2), smoke: insideSmoke ? 1 : 0,
       revealed: this.revealedLeft > 0, active: true, wave: this.wave,
       alive: this.enemies.filter(enemy => !enemy.bot.isDead).length,
       destroyed: this.utilitiesDestroyed, spawned: this.utilitiesSpawned, cleared: this.wavesCleared });

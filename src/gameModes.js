@@ -390,12 +390,13 @@ export class GameModeManager {
       min: new THREE.Vector3(x1, y, z1), max: new THREE.Vector3(x2, 30, z2)
     });
     // These bounds affect only player movement: enemies and bullets can cross A Main.
-    this.player.setColliders([...this.mapManager.colliders,
+    this.player.setColliders([
       barrier(minX - 2, minZ - 2, minX, maxZ + 2),
       barrier(maxX, minZ - 2, maxX + 2, maxZ + 2),
       barrier(minX - 2, minZ - 2, maxX + 2, minZ),
       barrier(minX - 2, maxZ, maxX + 2, maxZ + 2),
-      barrier(-10, -22, 10, -14.6, 4.15)
+      barrier(-10, -22, 10, -14.6, 4.15),
+      ...this.mapManager.colliders
     ]);
     this.player.setPosition(mapData.spawnPos.x, mapData.spawnPos.y, mapData.spawnPos.z);
     this.player.setLookAngles(mapData.spawnYawDeg, 0);
