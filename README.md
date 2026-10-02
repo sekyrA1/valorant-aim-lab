@@ -14,6 +14,8 @@ Um FPS 3D completo para navegador construído com **Three.js** e **Vite**, proje
 
 Na aba **Rotinas & Minhas playlists**, clique em **Nova playlist** para montar uma sequência com qualquer uma das 20 tasks. Cada etapa tem duração de 5 a 600 segundos, dificuldade própria e, quando disponível, variante ou cenário. Você pode reordenar, duplicar e remover etapas, editar o nome, iniciar a rotina e excluir com opção de desfazer.
 
+Para compartilhar, use **Compartilhar** no cartão de uma playlist ou **Gerar código de todas**. Clique em **Copiar código** e envie o texto gerado. Quem receber abre **Importar código**, cola o texto e clica em **Importar playlists**. Os códigos começam com `VALPL1.` e carregam a sequência completa, incluindo ordem, duração, dificuldade, variante e cenário; não precisam de conta, servidor ou arquivo. As playlists existentes são preservadas, cópias idênticas são ignoradas e códigos inválidos não alteram os dados locais.
+
 Clique em **Salvar playlist** para guardar a sequência no `localStorage` deste navegador. Os dados continuam disponíveis ao recarregar ou reabrir o site no mesmo navegador; limpar os dados do site apaga as playlists. A execução mostra o progresso e gera um relatório por etapa e histórico local. Ao concluir ou sair, a dificuldade e as variantes anteriores do lobby são restauradas. Execute `npm run test:playlists` para verificar persistência e execução.
 
 ## 🎮 Modos de Jogo Inclusos

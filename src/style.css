@@ -1904,6 +1904,12 @@ body, html {
 .custom-playlist-card p { color: var(--val-cyan); margin: 0; }
 .custom-playlist-card ol { color: #acbac7; padding-left: 22px; margin: 0; line-height: 1.75; font-size: .85rem; max-height: 190px; overflow-y: auto; }
 .custom-playlist-actions { margin-top: auto; }
+.custom-playlist-transfer { padding: 20px; margin-bottom: 20px; background: #101c28; border: 1px solid rgba(0,240,255,.3); border-radius: 6px; }
+.custom-playlist-transfer h3 { margin: 0 0 10px; color: #fff; overflow-wrap: anywhere; }
+.custom-playlist-transfer p { color: var(--val-gray); line-height: 1.5; margin-bottom: 14px; }
+.custom-playlist-transfer .custom-transfer-status { color: var(--val-cyan); font-size: .85rem; margin: 12px 0 0; }
+.custom-playlist-transfer textarea { display: block; width: 100%; box-sizing: border-box; margin: 8px 0 14px; padding: 12px; background: #0d1823; border: 1px solid #3b4d60; border-radius: 4px; color: #eff6fc; font: .85rem monospace; resize: vertical; overflow-wrap: anywhere; }
+.custom-playlist-transfer textarea:focus-visible { outline: 2px solid var(--val-cyan); outline-offset: 3px; }
 @media (max-width: 650px) {
   .custom-playlist-form { padding: 12px; }
   .custom-stage-fields { flex-basis: calc(100% - 40px); }

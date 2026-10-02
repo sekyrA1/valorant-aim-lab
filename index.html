@@ -413,8 +413,34 @@
             <div class="custom-playlists-header">
               <div><h2 id="custom-playlists-heading">Minhas playlists</h2>
                 <p>Monte sua sequência de treino. As playlists ficam salvas apenas neste navegador.</p></div>
-              <button id="custom-playlist-new" type="button">+ Nova playlist</button>
+              <div class="custom-playlist-actions">
+                <button id="custom-playlist-import-open" type="button">Importar código</button>
+                <button id="custom-playlist-export-all" type="button">Gerar código de todas</button>
+                <button id="custom-playlist-new" type="button">+ Nova playlist</button>
+              </div>
             </div>
+            <section id="custom-playlist-share-panel" class="custom-playlist-transfer" hidden aria-labelledby="custom-playlist-share-title">
+              <h3 id="custom-playlist-share-title">Compartilhar playlist</h3>
+              <p>Envie este código. Quem receber pode colar em Importar código para salvar a sequência no próprio navegador.</p>
+              <label for="custom-playlist-share-code">Código da playlist</label>
+              <textarea id="custom-playlist-share-code" readonly rows="3" spellcheck="false"></textarea>
+              <div class="custom-playlist-actions">
+                <button id="custom-playlist-copy-code" type="button" class="custom-save">Copiar código</button>
+                <button id="custom-playlist-share-close" type="button">Fechar</button>
+              </div>
+              <p class="custom-transfer-status" role="status" aria-live="polite"></p>
+            </section>
+            <section id="custom-playlist-import-panel" class="custom-playlist-transfer" hidden aria-labelledby="custom-playlist-import-title">
+              <h3 id="custom-playlist-import-title">Importar playlists por código</h3>
+              <p>Cole o código recebido. Suas playlists atuais serão mantidas; sequências idênticas não serão duplicadas.</p>
+              <label for="custom-playlist-import-code">Código recebido</label>
+              <textarea id="custom-playlist-import-code" rows="3" maxlength="131072" spellcheck="false" placeholder="VALPL1.…"></textarea>
+              <div class="custom-playlist-actions">
+                <button id="custom-playlist-import-confirm" type="button" class="custom-save">Importar playlists</button>
+                <button id="custom-playlist-import-close" type="button">Cancelar importação</button>
+              </div>
+              <p class="custom-transfer-status" role="status" aria-live="polite"></p>
+            </section>
             <div id="custom-playlist-list" class="playlists-cards"></div>
             <form class="custom-playlist-form" hidden>
               <label class="custom-playlist-name-label" for="custom-playlist-name">Nome da playlist

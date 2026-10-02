@@ -4,6 +4,39 @@ export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, char 
 const difficulties = { easy: 'Fácil', normal: 'Normal', hard: 'Difícil' };
 const scenarios = { ascent_main: 'A Main', ascent_heaven: 'Heaven', tight_pixel: 'Fresta', unpredictable: 'Aleatório' };
 const clone = value => JSON.parse(JSON.stringify(value));
+const newPlaylistId = () => `custom-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+const CODE_PREFIX = 'VALPL1.';
+const MAX_CODE_LENGTH = 128 * 1024;
+const MAX_SHARE_BYTES = 512 * 1024;
+const compactPlaylist = playlist => [playlist.title, playlist.stages.map(stage =>
+  [stage.mode, stage.time, stage.difficulty, stage.variant || null, stage.scenario || null])];
+
+async function decodePlaylistCode(code) {
+  if (typeof code !== 'string' || code.length > MAX_CODE_LENGTH) throw new Error('Código muito grande. Compartilhe menos playlists por vez.');
+  const clean = code.replace(/\s/g, '');
+  if (!/^VALPL1\.[A-Za-z0-9_-]+$/.test(clean)) throw new Error('Código inválido ou de uma versão incompatível. Copie o código completo, começando com VALPL1.');
+  let reader;
+  try {
+    const encoded = clean.slice(CODE_PREFIX.length).replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(encoded);
+    const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+    reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate')).getReader();
+    const chunks = []; let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > MAX_SHARE_BYTES) throw new Error('size');
+      chunks.push(value);
+    }
+    const decoded = new Uint8Array(total); let offset = 0;
+    for (const chunk of chunks) { decoded.set(chunk, offset); offset += chunk.length; }
+    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(decoded));
+  } catch {
+    if (reader) await reader.cancel().catch(() => {});
+    throw new Error('Não foi possível ler o código. Ele pode estar incompleto, alterado ou ser muito grande.');
+  }
+}
 
 export class CustomPlaylistStore {
   constructor(catalog, storage) {
@@ -31,11 +64,11 @@ export class CustomPlaylistStore {
     if (!/^custom-[a-zA-Z0-9-]{1,80}$/.test(input.id)) throw new Error('Playlist inválida.');
     if (!Array.isArray(input.stages) || !input.stages.length || input.stages.length > 40) throw new Error('Adicione de 1 a 40 etapas.');
     const stages = input.stages.map(stage => {
-      if (!Object.hasOwn(this.catalog, stage.mode)) throw new Error('Selecione uma task disponível em cada etapa.');
+      if (typeof stage.mode !== 'string' || !Object.hasOwn(this.catalog, stage.mode)) throw new Error('Selecione uma task disponível em cada etapa.');
       const task = this.catalog[stage.mode];
       const time = Number(stage.time);
       if (!Number.isInteger(time) || time < 5 || time > 600) throw new Error('Cada etapa deve durar de 5 a 600 segundos.');
-      if (!Object.hasOwn(difficulties, stage.difficulty)) throw new Error('Selecione a dificuldade de cada etapa.');
+      if (typeof stage.difficulty !== 'string' || !Object.hasOwn(difficulties, stage.difficulty)) throw new Error('Selecione a dificuldade de cada etapa.');
       const result = { mode: stage.mode, time, difficulty: stage.difficulty, title: task.title,
         tag: `${difficulties[stage.difficulty]} • ${time}s`, desc: task.desc || '' };
       if (task.variants?.length) {
@@ -75,6 +108,50 @@ export class CustomPlaylistStore {
     if (removed) this.write(this.playlists.filter(item => item.id !== id));
     return removed;
   }
+
+  async createCode(id) {
+    const playlists = id ? [this.get(id)].filter(Boolean) : this.playlists;
+    if (!playlists.length) throw new Error('Salve uma playlist antes de gerar um código.');
+    if (playlists.length > 100) throw new Error('Compartilhe até 100 playlists por código. Use Compartilhar em cada playlist.');
+    const payload = new TextEncoder().encode(JSON.stringify(playlists.map(compactPlaylist)));
+    if (payload.length > MAX_SHARE_BYTES) throw new Error('Compartilhe menos playlists por vez.');
+    const stream = new Blob([payload]).stream().pipeThrough(new CompressionStream('deflate'));
+    const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+    const encoded = btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(''))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const code = CODE_PREFIX + encoded;
+    if (code.length > MAX_CODE_LENGTH) throw new Error('Compartilhe menos playlists por vez.');
+    return code;
+  }
+
+  async importCode(code) {
+    const data = await decodePlaylistCode(code);
+    if (!Array.isArray(data) || !data.length || data.length > 100) throw new Error('O código deve conter de 1 a 100 playlists.');
+    // Validate the complete bundle before changing local storage.
+    const incoming = data.map((item, index) => {
+      try {
+        if (!Array.isArray(item) || item.length !== 2 || !Array.isArray(item[1])) throw new Error('Formato de playlist inválido.');
+        const stages = item[1].map(stage => {
+          if (!Array.isArray(stage) || stage.length !== 5 || typeof stage[0] !== 'string' ||
+              typeof stage[1] !== 'number' || typeof stage[2] !== 'string' ||
+              (stage[3] !== null && typeof stage[3] !== 'string') ||
+              (stage[4] !== null && typeof stage[4] !== 'string')) throw new Error('Formato de etapa inválido.');
+          return { mode: stage[0], time: stage[1], difficulty: stage[2], variant: stage[3], scenario: stage[4] };
+        });
+        return this.normalize({ id: newPlaylistId(), title: item[0], stages });
+      } catch (error) { throw new Error(`Playlist ${index + 1}: ${error.message}`); }
+    });
+    const existing = new Map(this.playlists.map(playlist => [JSON.stringify(compactPlaylist(playlist)), playlist]));
+    const added = []; let skipped = 0; let firstId;
+    for (const playlist of incoming) {
+      const signature = JSON.stringify(compactPlaylist(playlist));
+      const duplicate = existing.get(signature);
+      if (duplicate) { skipped++; firstId ||= duplicate.id; continue; }
+      existing.set(signature, playlist); added.push(playlist); firstId ||= playlist.id;
+    }
+    if (added.length) this.write([...this.playlists, ...added]);
+    return { added: added.length, skipped, firstId };
+  }
 }
 
 export class CustomPlaylistEditor {
@@ -84,6 +161,39 @@ export class CustomPlaylistEditor {
     this.name = root.querySelector('#custom-playlist-name'); this.status = root.querySelector('#custom-playlist-status');
     this.saved = root.querySelector('#custom-playlist-list');
     root.querySelector('#custom-playlist-new').onclick = () => this.edit();
+    this.sharePanel = root.querySelector('#custom-playlist-share-panel');
+    this.importPanel = root.querySelector('#custom-playlist-import-panel');
+    this.shareCode = root.querySelector('#custom-playlist-share-code');
+    this.importCode = root.querySelector('#custom-playlist-import-code');
+    root.querySelector('#custom-playlist-export-all').onclick = () => this.share();
+    root.querySelector('#custom-playlist-import-open').onclick = () => {
+      this.importPanel.hidden = false; this.sharePanel.hidden = true;
+      this.importPanel.scrollIntoView({ block: 'nearest' }); this.importCode.focus();
+      this.message('Cole o código recebido para adicionar as playlists.');
+    };
+    root.querySelector('#custom-playlist-share-close').onclick = () => { this.sharePanel.hidden = true; };
+    root.querySelector('#custom-playlist-import-close').onclick = () => { this.importPanel.hidden = true; };
+    root.querySelector('#custom-playlist-copy-code').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(this.shareCode.value);
+        this.message('Código copiado! Envie para quem quiser importar.');
+      } catch {
+        this.shareCode.focus(); this.shareCode.select();
+        this.message('Selecionei o código. Pressione Ctrl+C ou use a opção Copiar do seu dispositivo.');
+      }
+    };
+    root.querySelector('#custom-playlist-import-confirm').onclick = async event => {
+      const button = event.currentTarget; button.disabled = true;
+      this.message('Importando playlists…');
+      try {
+        const result = await this.store.importCode(this.importCode.value);
+        this.callbacks.onSelect(result.firstId); this.renderSaved();
+        this.importPanel.hidden = true; this.importCode.value = '';
+        const added = `${result.added} ${result.added === 1 ? 'playlist importada e salva' : 'playlists importadas e salvas'} neste navegador.`;
+        this.message(result.added ? `${added}${result.skipped ? ` ${result.skipped} já existiam e foram ignoradas.` : ''}` : 'Estas playlists já estão salvas. Nenhuma cópia duplicada foi criada.');
+      } catch (error) { this.message(error.message); }
+      finally { button.disabled = false; }
+    };
     root.querySelector('#custom-playlist-add').onclick = () => {
       if (this.draft.stages.length >= 40) { this.message('A playlist já tem 40 etapas.'); return; }
       this.draft.stages.push(this.defaultStage()); this.renderRows(); this.message('Alterações ainda não salvas.');
@@ -107,8 +217,24 @@ export class CustomPlaylistEditor {
   }
 
   message(text) {
-    this.status.textContent = text;
+    const activePanel = [this.sharePanel, this.importPanel].find(panel => !panel.hidden);
+    this.status.textContent = activePanel ? '' : text;
+    for (const panel of [this.sharePanel, this.importPanel]) {
+      panel.querySelector('.custom-transfer-status').textContent = panel === activePanel ? text : '';
+    }
     this.root.querySelector('#custom-playlist-undo').hidden = !this.deleted;
+  }
+
+  async share(id) {
+    this.message('Gerando código…');
+    try {
+      this.shareCode.value = await this.store.createCode(id);
+      this.sharePanel.hidden = false; this.importPanel.hidden = true;
+      this.root.querySelector('#custom-playlist-share-title').textContent = id
+        ? `Compartilhar: ${this.store.get(id).title}` : 'Compartilhar todas as playlists';
+      this.sharePanel.scrollIntoView({ block: 'nearest' }); this.shareCode.focus(); this.shareCode.select();
+      this.message('Código gerado. Copie e envie; quem receber pode colar em Importar código.');
+    } catch (error) { this.message(error.message); }
   }
 
   defaultStage(mode = 'gridshot') {
@@ -120,7 +246,8 @@ export class CustomPlaylistEditor {
   }
 
   edit(id) {
-    this.draft = id ? this.store.get(id) : { id: `custom-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`,
+    this.sharePanel.hidden = true; this.importPanel.hidden = true;
+    this.draft = id ? this.store.get(id) : { id: newPlaylistId(),
       title: 'Minha playlist', stages: [this.defaultStage()] };
     if (!this.draft) return;
     this.form.hidden = false; this.name.value = this.draft.title; this.renderRows();
@@ -187,6 +314,7 @@ export class CustomPlaylistEditor {
 
   renderSaved() {
     this.saved.replaceChildren();
+    this.root.querySelector('#custom-playlist-export-all').disabled = !this.store.playlists.length;
     if (!this.store.playlists.length) {
       const empty = document.createElement('p'); empty.className = 'custom-playlist-empty';
       empty.textContent = 'Você ainda não tem playlists próprias. Clique em Nova playlist para montar a primeira.'; this.saved.appendChild(empty);
@@ -203,6 +331,7 @@ export class CustomPlaylistEditor {
       const button = (text, callback) => { const element = document.createElement('button'); element.type = 'button'; element.textContent = text; element.onclick = event => { event.stopPropagation(); callback(); }; actions.appendChild(element); };
       button('Iniciar', () => this.callbacks.onStart(playlist.id));
       button('Editar', () => this.edit(playlist.id));
+      button('Compartilhar', () => this.share(playlist.id));
       button('Excluir', () => {
         try {
           this.deleted = this.store.remove(playlist.id);

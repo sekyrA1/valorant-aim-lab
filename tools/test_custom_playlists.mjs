@@ -39,6 +39,52 @@ storage.setItem(CUSTOM_PLAYLIST_KEY, JSON.stringify({ version: 1, playlists: [dr
 assert.equal(new CustomPlaylistStore(catalog, storage).playlists.length, 1, 'bad records do not hide valid playlists');
 assert.equal(escapeHTML('<img src=x> & "test"'), '&lt;img src=x&gt; &amp; &quot;test&quot;');
 
+// Codes transfer the routine itself, without depending on browser IDs or a server.
+const sharedCode = await store.createCode(draft.id);
+assert.match(sharedCode, /^VALPL1\.[A-Za-z0-9_-]+$/);
+const receivedData = new Map();
+const receivedStorage = { getItem: key => receivedData.get(key), setItem: (key, value) => receivedData.set(key, value) };
+const recipient = new CustomPlaylistStore(catalog, receivedStorage);
+const imported = await recipient.importCode(`  ${sharedCode.slice(0, 20)}\n${sharedCode.slice(20)}  `);
+assert.equal(imported.added, 1); assert.equal(imported.skipped, 0);
+const received = recipient.get(imported.firstId);
+assert.notEqual(received.id, draft.id, 'import creates its own local ID');
+assert.equal(received.title, draft.title, 'Unicode and special characters survive sharing');
+assert.deepEqual(received.stages, store.get(draft.id).stages, 'order, duration, difficulty, variants and scenarios survive sharing');
+assert.equal(new CustomPlaylistStore(catalog, receivedStorage).playlists.length, 1, 'import persists immediately');
+assert.equal((await recipient.importCode(sharedCode)).added, 0, 'same code does not duplicate a playlist');
+assert.equal(recipient.playlists.length, 1);
+const sameId = recipient.get(imported.firstId); sameId.title = 'Minha edição local'; recipient.save(sameId);
+assert.equal((await recipient.importCode(sharedCode)).added, 1, 'an imported copy cannot overwrite an edited local playlist');
+assert.equal(recipient.get(sameId.id).title, 'Minha edição local');
+store.save({ ...draft, id: 'custom-second', title: 'Outra rotina' });
+const allCode = await store.createCode();
+assert.equal((await recipient.importCode(allCode)).added, 1, 'a bundle merges new playlists and skips existing ones');
+const beforeFailure = JSON.stringify(recipient.playlists);
+for (const badCode of ['', 'VALPL2.abc', 'VALPL1.not-valid', sharedCode.slice(0, -8), `${sharedCode.slice(0, -1)}!`, 'x'.repeat(131073)]) {
+  await assert.rejects(() => recipient.importCode(badCode));
+  assert.equal(JSON.stringify(recipient.playlists), beforeFailure, 'invalid codes leave existing playlists untouched');
+}
+const encodeInvalid = async payload => {
+  const stream = new Blob([JSON.stringify(payload)]).stream().pipeThrough(new CompressionStream('deflate'));
+  const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+  return 'VALPL1.' + Buffer.from(bytes).toString('base64url');
+};
+const validTuple = ['Primeira', [['gridshot', 30, 'normal', null, null]]];
+const invalidTuple = ['Inválida', [['removed-task', 30, 'normal', null, null]]];
+for (const payload of [null, [], [validTuple, invalidTuple], Array(101).fill(validTuple), [['Sem etapas', []]],
+  [['Duração inválida', [['gridshot', '30', 'normal', null, null]]]],
+  [['Task inválida', [[['gridshot'], 30, 'normal', null, null]]]],
+  [['Dificuldade inválida', [['gridshot', 30, ['normal'], null, null]]]],
+  [['Variante inválida', [['centering', 30, 'hard', 'unknown', null]]]],
+  [['Cenário inválido', [['hold_pixel', 30, 'normal', null, 'unknown']]]], [['x'.repeat(600000), []]]]) {
+  await assert.rejects(async () => recipient.importCode(await encodeInvalid(payload)));
+  assert.equal(JSON.stringify(recipient.playlists), beforeFailure, 'bundle validation is atomic');
+}
+await assert.rejects(() => failing.importCode(allCode), /salvar/, 'quota failure leaves local data intact');
+assert.equal(failing.playlists.length, 1);
+await assert.rejects(() => new CustomPlaylistStore(catalog, { getItem() {} }).createCode(), /Salve/);
+
 globalThis.window = { addEventListener() {}, innerHeight: 720 };
 const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(70, 16 / 9, .1, 150);
 const sound = { playTargetPop() {}, playGunfire() {}, playKnifeSlash() {} };
@@ -66,4 +112,4 @@ assert.equal(game.difficultyId, 'normal'); assert.equal(game.skillTaskManager.va
 assert.equal(game.activePlaylist, null); assert.equal(game.customDuration, null);
 assert(game.startPlaylist('pro_warmup'), 'built-in playlists still start');
 game.stopPlaylist(); game.skillTaskManager.clearAll(); bots.clearAll(); map.clearMap();
-console.log('Custom playlist checks passed: persistence, validation, edit/reorder, undo, write failure, snapshots, per-stage duration/difficulty/variants and cancellation.');
+console.log('Custom playlist checks passed: persistence, compressed share codes, Unicode round trip, bundles, duplicate handling, atomic validation, corruption/size limits, write failure and per-stage execution.');
