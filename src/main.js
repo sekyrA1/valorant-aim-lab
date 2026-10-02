@@ -10,6 +10,7 @@ import { ShootingErrorGraph } from './shootingErrorGraph.js';
 import { PerformanceTracker, PLAYLIST_DEFINITIONS, VOLTAIC_TIERS } from './performance.js';
 import { VFXManager } from './vfx.js';
 import { PostProcessor } from './postprocessing.js';
+import { DroneIndicators } from './droneIndicators.js';
 
 // --- THREE.JS SETUP ---
 const container = document.getElementById('canvas-container');
@@ -46,6 +47,7 @@ const postProcessor = new PostProcessor(renderer, scene, camera);
 
 // --- DOM ELEMENTS ---
 const hudElement = document.getElementById('hud');
+const droneIndicators = new DroneIndicators(document.getElementById('drone-indicators'));
 const lobbyScreen = document.getElementById('lobby-screen');
 const pauseScreen = document.getElementById('pause-screen');
 const settingsModal = document.getElementById('settings-modal');
@@ -145,7 +147,7 @@ const gameModeManager = new GameModeManager(
         );
         holdBanner.style.display = showPrompt ? 'block' : 'none';
         if (mode === MODES.DRONES) {
-          holdBanner.innerText = 'SOBREVIVA • DRONES SURGEM NO CONE FRONTAL DE 90°';
+          holdBanner.innerText = 'SOBREVIVA • CONE DE 60° • SETAS INDICAM DRONES FORA DA TELA';
           holdBanner.className = 'hold-prompt waiting';
         } else if (mode === MODES.JETT_NEON) {
           holdBanner.innerText = 'JETT VOA LANÇANDO FACAS • NEON DESLIZA DISPARANDO';
@@ -1697,6 +1699,14 @@ function animate() {
   if (gameModeManager.isRunning && !isPaused) {
     hudTimer.innerText = Math.max(0, Math.ceil(gameModeManager.sessionTimer));
   }
+
+  // Track offscreen drones in the current camera frame.
+  const indicatorDrones = gameModeManager.currentMode === MODES.ANTI_RUSH
+    ? gameModeManager.antiRushManager.utilities.filter(utility => utility.kind === 'drone')
+    : gameModeManager.droneManager.drones;
+  droneIndicators.update(indicatorDrones, camera,
+    gameModeManager.isRunning && !isPaused && [MODES.DRONES, MODES.ANTI_RUSH].includes(gameModeManager.currentMode),
+    window.innerWidth, window.innerHeight);
 
   // Render Dynamic Crosshair
   const horizSpeed = playerController.getHorizontalSpeed();

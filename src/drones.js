@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const SPAWN_HALF_ANGLE = Math.PI / 4;
+const SPAWN_HALF_ANGLE = Math.PI / 6;
 const DRONE_SHOTS_TO_KILL = 1;
 const MIN_DRONE_SPAWN_SEPARATION = 1.5;
 
@@ -141,7 +141,7 @@ export class DroneManager {
     const position = new THREE.Vector3();
     let found = false;
 
-    // Every candidate is sampled inside a 90-degree horizontal cone.
+    // Every candidate is sampled inside a 60-degree horizontal cone.
     for (let i = 0; i < 100; i++) {
       const angle = (Math.random() * 2 - 1) * SPAWN_HALF_ANGLE;
       const distance = 8.8 + Math.random() * 4.0;
