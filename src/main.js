@@ -12,6 +12,8 @@ import { VFXManager } from './vfx.js';
 import { PostProcessor } from './postprocessing.js';
 import { DroneIndicators } from './droneIndicators.js';
 import { SKILL_TASKS, isSkillMode } from './skillTasks.js';
+import { TrainingAcademy, renderGuidedPlaylists } from './trainingAcademy.js';
+import { TASK_GUIDES, assessTraining } from './trainingGuides.js';
 import { CustomPlaylistStore, CustomPlaylistEditor, escapeHTML } from './customPlaylists.js';
 
 // --- THREE.JS SETUP ---
@@ -117,11 +119,12 @@ const gameModeManager = new GameModeManager(
         [MODES.YPRAC_SPRAY]: 'YPRAC - SPRAY TRANSFER',
         [MODES.YPRAC_PEEK_DUEL]: 'YPRAC - PEEK & JIGGLE DUEL'
       };
+      document.getElementById('cognitive-stimulus').hidden = mode !== 'dual_task';
       hudModeTitle.innerText = `${SKILL_TASKS[mode]?.title || modeTitles[mode] || 'AIM TRAINER'} • ${gameModeManager.difficulty.label}`;
       hudControls.innerHTML = isSkillMode(mode)
         ? (gameModeManager.skillTaskManager.isAutomatic()
-          ? '[MOUSE] Acompanhar • Posição fixa • [ESC] Menu'
-          : '[MOUSE] Mirar • [CLIQUE] Atirar • [R] Recarregar • Posição fixa • [ESC] Menu')
+          ? `[MOUSE] Acompanhar • ${SKILL_TASKS[mode]?.movement ? '[WASD] Mover' : 'Posição fixa'} • [ESC] Menu`
+          : `[MOUSE] Mirar • [CLIQUE] Atirar • ${SKILL_TASKS[mode]?.movement ? '[WASD] Mover' : 'Posição fixa'} • [ESC] Menu`)
         : standardControls;
       hudScore.innerText = 'SCORE: 0';
       hudHealth.innerText = '100';
@@ -222,7 +225,16 @@ const gameModeManager = new GameModeManager(
       }
     },
 
+    onCognitive: data => {
+      const stimulus = document.getElementById('cognitive-stimulus'); stimulus.hidden = false;
+      document.getElementById('cognitive-text').textContent = data.text;
+      document.getElementById('cognitive-stats').textContent = `${data.hits} corretas • ${data.misses} erradas/perdidas`;
+    },
     onGameOver: (summary) => {
+      document.getElementById('cognitive-stimulus').hidden = true;
+      const lessonResult = trainingAcademy.record(summary);
+      document.getElementById('report-learning-feedback').textContent = lessonResult
+        ? `${lessonResult.practiceOnly ? 'PAUSA' : lessonResult.passed ? 'META ATINGIDA' : 'PRÓXIMO AJUSTE'} • ${lessonResult.feedback}${lessonResult.metricsText ? ` ${lessonResult.metricsText}.` : ''}` : '';
       try {
         if (document.pointerLockElement) {
           document.exitPointerLock();
@@ -266,8 +278,8 @@ const gameModeManager = new GameModeManager(
       const titleEl = document.getElementById('report-title');
       const subEl = document.getElementById('report-submessage');
       if (titleEl) {
-        titleEl.innerText = isVictory ? 'VITÓRIA' : 'DERROTA';
-        titleEl.className = `report-banner ${isVictory ? 'victory' : 'defeat'}`;
+        titleEl.innerText = lessonResult ? (lessonResult.practiceOnly ? 'PAUSA' : lessonResult.passed ? 'META ATINGIDA' : 'SESSÃO CONCLUÍDA') : isVictory ? 'VITÓRIA' : 'DERROTA';
+        titleEl.className = `report-banner ${lessonResult ? lessonResult.passed || lessonResult.practiceOnly ? 'victory' : 'defeat' : isVictory ? 'victory' : 'defeat'}`;
       }
       if (subEl) {
         subEl.innerText = message;
@@ -310,6 +322,7 @@ const gameModeManager = new GameModeManager(
     },
 
     onPlaylistStageStarted: (playlist, stage, stageIndex, totalStages, accumulatedScore = 0) => {
+      document.getElementById('training-stage-tip').textContent = stage.desc || TASK_GUIDES[stage.mode]?.steps.join(' ') || '';
       refreshDifficultyUI();
       const plHud = document.getElementById('playlist-hud-container');
       if (plHud) {
@@ -344,6 +357,8 @@ const gameModeManager = new GameModeManager(
     },
 
     onPlaylistCompleted: (playlist, summary) => {
+      document.getElementById('cognitive-stimulus').hidden = true;
+      for (const stage of summary.stages) trainingAcademy.record(stage);
       refreshDifficultyUI();
       try {
         if (document.pointerLockElement) {
@@ -508,6 +523,7 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
 // --- SHOOTING LOGIC ---
 function performShot() {
   if (!gameModeManager.isRunning || !playerController.isPointerLocked) return;
+  if (isSkillMode(gameModeManager.currentMode) && gameModeManager.skillTaskManager.isAutomatic()) return;
 
   const playerSpeed = playerController.getHorizontalSpeed();
   const shotInfo = weaponManager.shoot(playerSpeed, playerController.isGrounded);
@@ -571,6 +587,7 @@ function performShot() {
 
 // Classic Pistol Right-Click Shotgun Burst (3 bullets)
 function performClassicBurst() {
+  if (isSkillMode(gameModeManager.currentMode) && gameModeManager.skillTaskManager.isAutomatic()) return;
   if (!gameModeManager.isRunning || !playerController.isPointerLocked) return;
   if (weaponManager.ammo <= 0 || weaponManager.isReloading) {
     weaponManager.reload();
@@ -731,7 +748,7 @@ for (const [mode, task] of Object.entries(SKILL_TASKS)) {
     <h2 class="mode-title">${task.title}</h2><p class="mode-desc">${task.desc}</p>
     ${task.variants ? `<div class="scenario-selector-pills">${task.variants.map(([id, label], index) =>
       `<button class="pill-skill-variant${index ? '' : ' active'}" data-task="${mode}" data-variant="${id}" type="button">${label}</button>`).join('')}</div>` : ''}</div>
-    <div class="mode-card-bottom"><span class="mode-stats-summary">Tempo: 60s • Posição fixa</span><span class="skill-adaptation">ADAPTAÇÃO</span></div>`;
+    <div class="mode-card-bottom"><span class="mode-stats-summary">Tempo: 60s • ${task.movement ? 'WASD liberado' : 'Posição fixa'}</span><span class="skill-adaptation">ADAPTAÇÃO</span></div>`;
   document.querySelector(`[data-skill-category="${task.category}"]`).appendChild(card);
 }
 document.querySelectorAll('.pill-skill-variant').forEach(button => button.addEventListener('click', event => {
@@ -744,6 +761,17 @@ document.querySelectorAll('.pill-skill-variant').forEach(button => button.addEve
   savePlayerConfig({ skillVariants: { ...gameModeManager.skillTaskManager.variants } });
 }));
 const modeCards = document.querySelectorAll('.mode-card');
+document.getElementById('tab-modes-view').lastChild.textContent = ` MODOS INDIVIDUAIS (${AVAILABLE_MODES.length})`;
+for (const category of document.querySelectorAll('.task-category')) {
+  const count = category.querySelectorAll('.mode-card').length;
+  category.querySelector('h2 span').textContent = `${count} ${count === 1 ? 'task' : 'tasks'}`;
+  const link = document.querySelector(`.task-category-nav a[href="#${category.id}"] span`); if (link) link.textContent = count;
+}
+modeCards.forEach(card => {
+  const button = document.createElement('button'); button.type = 'button'; button.className = 'btn-learn-task'; button.textContent = 'Aprender esta task';
+  button.onclick = event => { event.stopPropagation(); document.getElementById('tab-academy-view').click(); trainingAcademy.show(card.dataset.mode); };
+  card.appendChild(button);
+});
 const difficultyButtons = document.querySelectorAll('.difficulty-btn');
 function refreshDifficultyUI() {
   difficultyButtons.forEach(button => button.classList.toggle('active',
@@ -806,6 +834,7 @@ weaponButtons.forEach(btn => {
 // Start Game / Playlist from Lobby
 const btnStartGame = document.getElementById('btn-start-game');
 btnStartGame.addEventListener('click', () => {
+  if (activeLobbyTab === 'academy') { startLearningTask(trainingAcademy.mode); return; }
   if (activeLobbyTab === 'playlists') { startSelectedPlaylist(selectedPlaylistId); return; }
   soundManager.init();
   soundManager.playUIClick();
@@ -818,6 +847,13 @@ btnStartGame.addEventListener('click', () => {
   gameModeManager.startMode(selectedMode);
   playerController.requestPointerLock();
 });
+
+function startLearningTask(mode) {
+  selectedMode = mode;
+  soundManager.init(); soundManager.playUIClick();
+  lobbyScreen.style.display = 'none'; hudElement.style.display = 'block'; updateAmmoUI();
+  gameModeManager.startMode(mode); playerController.requestPointerLock();
+}
 
 // Start specific playlist
 function startSelectedPlaylist(playlistId) {
@@ -864,6 +900,7 @@ document.getElementById('btn-pause-settings').addEventListener('click', () => {
 
 document.getElementById('btn-pause-lobby').addEventListener('click', () => {
   soundManager.playUIClick();
+  document.getElementById('cognitive-stimulus').hidden = true;
   gameModeManager.isRunning = false;
   gameModeManager.stopPlaylist();
   refreshDifficultyUI();
@@ -909,6 +946,7 @@ function returnToLobbyFromReport() {
   hudElement.style.display = 'none';
   pauseScreen.classList.remove('active');
   lobbyScreen.style.display = 'flex';
+  document.getElementById('cognitive-stimulus').hidden = true;
   gameModeManager.isRunning = false;
   gameModeManager.stopPlaylist();
   refreshDifficultyUI();
@@ -1003,6 +1041,7 @@ function showPlaylistReportModal(playlist, summary, recorded) {
             <span class="pl-stage-card-title" style="font-weight: 700; color: #fff; font-size: 1.05rem;">${i + 1}. ${escapeHTML(stg.stageTitle)}</span>
           </div>
           <div class="pl-stage-card-sub" style="font-size: 0.85rem; color: var(--val-gray); margin-top: 4px;">${escapeHTML(stg.tag)} • ${stg.headshots} Headshots • ${stg.hits} Acertos / ${stg.misses} Erros</div>
+          <p class="pl-stage-learning">${escapeHTML(assessTraining(stg)?.feedback || '')} ${escapeHTML(assessTraining(stg)?.metricsText || '')}</p>
         </div>
         <div style="text-align: right;">
           <div class="pl-stage-card-score" style="font-family: var(--font-display); font-size: 1.6rem; color: var(--val-gold); line-height: 1;">${stg.score.toLocaleString()} PTS</div>
@@ -1074,6 +1113,8 @@ if (tabModesView && tabPlaylistsView && modesViewContainer && playlistsViewConta
   tabModesView.addEventListener('click', () => {
     soundManager.playUIClick();
     activeLobbyTab = 'modes';
+    document.getElementById('academy-view-container').style.display = 'none';
+    document.getElementById('tab-academy-view').classList.remove('active');
     tabModesView.classList.add('active');
     tabPlaylistsView.classList.remove('active');
     modesViewContainer.style.display = 'block';
@@ -1084,6 +1125,8 @@ if (tabModesView && tabPlaylistsView && modesViewContainer && playlistsViewConta
   tabPlaylistsView.addEventListener('click', () => {
     soundManager.playUIClick();
     activeLobbyTab = 'playlists';
+    document.getElementById('academy-view-container').style.display = 'none';
+    document.getElementById('tab-academy-view').classList.remove('active');
     tabPlaylistsView.classList.add('active');
     tabModesView.classList.remove('active');
     modesViewContainer.style.display = 'none';
@@ -1134,12 +1177,48 @@ const selectPlaylist = id => {
   selectedPlaylistId = id;
   document.querySelectorAll('.playlist-card').forEach(card => card.classList.toggle('selected', card.dataset.playlist === id));
 };
-new CustomPlaylistEditor(document.getElementById('custom-playlists'), customTaskCatalog, customPlaylistStore, {
+const customPlaylistEditor = new CustomPlaylistEditor(document.getElementById('custom-playlists'), customTaskCatalog, customPlaylistStore, {
   getDifficulty: () => gameModeManager.difficultyId,
   getSelected: () => selectedPlaylistId,
   onSelect: selectPlaylist,
   onStart: startSelectedPlaylist,
   onRemoved: id => { if (selectedPlaylistId === id) selectPlaylist('voltaic_benchmark'); }
+});
+
+const academyCallbacks = {
+  onStartTask: startLearningTask, onStartPlaylist: startSelectedPlaylist, onSelect: selectPlaylist,
+  getVariant: mode => gameModeManager.skillTaskManager.variants[mode],
+  onSetVariant: (mode, variant) => {
+    gameModeManager.skillTaskManager.variants[mode] = variant;
+    document.querySelectorAll(`.pill-skill-variant[data-task="${mode}"]`).forEach(button => button.classList.toggle('active', button.dataset.variant === variant));
+    savePlayerConfig({ skillVariants: { ...gameModeManager.skillTaskManager.variants } });
+  },
+  onSavePlaylist: playlist => {
+    try {
+      const saved = customPlaylistStore.save({ id: `custom-${crypto.randomUUID()}`, title: playlist.title,
+        stages: playlist.stages.map(stage => ({ ...stage, difficulty: gameModeManager.difficultyId,
+          variant: stage.variant || SKILL_TASKS[stage.mode]?.variants?.[0][0],
+          scenario: stage.scenario || (stage.mode === 'hold_pixel' ? 'ascent_main' : undefined) })) });
+      selectPlaylist(saved.id); customPlaylistEditor.renderSaved();
+      document.getElementById('tab-playlists-view').click(); customPlaylistEditor.message('Rotina copiada para Minhas playlists. Você pode editar e compartilhar o código.');
+      document.getElementById('custom-playlists').scrollIntoView({ block: 'start' });
+    } catch (error) { document.getElementById('tab-playlists-view').click(); customPlaylistEditor.message(error.message); }
+  }
+};
+const trainingAcademy = new TrainingAcademy(document.getElementById('academy-view-container'), academyCallbacks);
+renderGuidedPlaylists(document.getElementById('guided-playlist-list'), academyCallbacks);
+document.getElementById('tab-academy-view').onclick = () => {
+  activeLobbyTab = 'academy'; modesViewContainer.style.display = 'none'; playlistsViewContainer.style.display = 'none';
+  document.getElementById('academy-view-container').style.display = 'block';
+  tabModesView.classList.remove('active'); tabPlaylistsView.classList.remove('active');
+  document.getElementById('tab-academy-view').classList.add('active'); btnStartGame.innerText = 'PRATICAR LIÇÃO';
+  trainingAcademy.show(trainingAcademy.mode);
+};
+window.addEventListener('keydown', event => {
+  if (!event.repeat && gameModeManager.isRunning && gameModeManager.currentMode === 'dual_task' && !pauseScreen.classList.contains('active') && !settingsModal.classList.contains('active')) {
+    if (event.code === 'KeyQ') gameModeManager.skillTaskManager.cognitiveInput(true);
+    if (event.code === 'KeyE') gameModeManager.skillTaskManager.cognitiveInput(false);
+  }
 });
 
 // Update Playlist record badges in Lobby
@@ -1801,6 +1880,7 @@ function animate() {
     ? weaponManager.getFiringErrorRatio()
     : weaponManager.recoilAmount;
 
+  hudCrosshair.canvas.style.visibility = playerController.trainingNoCrosshair ? 'hidden' : 'visible';
   hudCrosshair.render(moveErrorAmount, firingErrorAmount);
 
   // Render Settings preview crosshair if open

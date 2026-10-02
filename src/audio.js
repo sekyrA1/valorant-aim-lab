@@ -76,6 +76,17 @@ class SoundManager {
     this.sfxVolume = Math.max(0, Math.min(1, sfx));
   }
 
+  playMetronome(accent = false) {
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const oscillator = this.ctx.createOscillator(), gain = this.ctx.createGain();
+    oscillator.frequency.value = accent ? 1100 : 750;
+    gain.gain.setValueAtTime(.12 * this.masterVolume * this.sfxVolume, now);
+    gain.gain.exponentialRampToValueAtTime(.0001, now + .05);
+    oscillator.connect(gain); gain.connect(this.ctx.destination);
+    oscillator.start(now); oscillator.stop(now + .055);
+  }
+
   // Generic gain creator helper
   _createGain(time, duration, startVal, endVal) {
     const gain = this.ctx.createGain();

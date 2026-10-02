@@ -1,5 +1,6 @@
 // Performance Tracker & Voltaic Rank Benchmark Engine for Valorant Aim Lab
 // Persists stats, sessions, playlist completions, and Voltaic ratings in localStorage
+import { GUIDED_PLAYLISTS } from './trainingGuides.js';
 
 export const VOLTAIC_TIERS = [
   { tier: 'FERRO', name: 'Ferro', badge: '⚙️', minPoints: 0, color: '#94a3b8' },
@@ -61,6 +62,7 @@ export const PLAYLIST_DEFINITIONS = {
     ]
   },
 
+  ...GUIDED_PLAYLISTS
 };
 
 const STORAGE_KEYS = {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { SkillTaskManager, SKILL_MODE_IDS } from '../src/skillTasks.js';
+import { isTrainingMode } from '../src/trainingCatalog.js';
 import { DIFFICULTIES } from '../src/difficulty.js';
 import { MapManager } from '../src/maps.js';
 import { BotManager } from '../src/bots.js';
@@ -14,9 +15,9 @@ const start = (mode, difficulty = DIFFICULTIES.normal, height = 720) => { resetC
 const aim = target => { camera.lookAt(target.group.position); camera.updateMatrixWorld(true); };
 const hit = target => manager.shot({ bot: target });
 
-assert.equal(SKILL_MODE_IDS.length, 9);
-assert.equal(AVAILABLE_MODES.length, 20);
-for (const difficulty of Object.values(DIFFICULTIES)) for (const mode of SKILL_MODE_IDS) {
+assert.equal(SKILL_MODE_IDS.filter(mode => !isTrainingMode(mode)).length, 9);
+assert.equal(AVAILABLE_MODES.length, 35);
+for (const difficulty of Object.values(DIFFICULTIES)) for (const mode of SKILL_MODE_IDS.filter(mode => !isTrainingMode(mode))) {
   start(mode, difficulty);
   for (let i = 0; i < 400; i++) {
     manager.update(1 / 120);

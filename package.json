@@ -9,6 +9,7 @@
     "test:anti-rush": "node tools/test_anti_rush.mjs",
     "test:skill-tasks": "node tools/test_skill_tasks.mjs",
     "test:playlists": "node tools/test_custom_playlists.mjs",
+    "test:training": "node tools/test_training.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {

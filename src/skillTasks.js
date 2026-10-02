@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TRAINING_TASKS } from './trainingCatalog.js';
 
 // Local adaptations of the requested mechanics; scores belong to this game's tasks.
 export const SKILL_TASKS = Object.freeze({
@@ -28,7 +29,8 @@ export const SKILL_TASKS = Object.freeze({
     hint: 'Strafes verticais rápidos', color: '#9ea5ff' },
   floating_heads: { title: 'FLOATING HEADS TIMING', category: 'vertical', badge: 'TIMING DE ATERRISSAGEM',
     desc: 'Cabeças caem com gravidade. Espere o alvo ficar verde perto da aterrissagem: tiros antecipados não pontuam.',
-    hint: 'Desça com o alvo • clique no verde', color: '#ffe084' }
+    hint: 'Desça com o alvo • clique no verde', color: '#ffe084' },
+  ...TRAINING_TASKS
 });
 
 export const SKILL_MODE_IDS = Object.freeze(Object.keys(SKILL_TASKS));

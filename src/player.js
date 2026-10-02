@@ -218,7 +218,7 @@ export class PlayerController {
 
     // Authentic Valorant sensitivity conversion
     // Valorant uses a factor of 0.07 degrees per count * sens
-    const degreesPerCount = this.valorantSens * 0.07;
+    const degreesPerCount = this.valorantSens * (this.trainingSensitivity || 1) * 0.07;
     const radiansPerCount = (degreesPerCount * Math.PI) / 180;
 
     this.pendingMousePitch += movementY * radiansPerCount;

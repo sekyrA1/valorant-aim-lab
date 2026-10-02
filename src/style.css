@@ -1917,3 +1917,45 @@ body, html {
   .custom-playlist-form-footer { align-items: stretch; }
   #custom-playlist-total { flex-basis: 100%; }
 }
+/* Training academy and guided practice */
+.academy-container > h2 { font: 800 2rem var(--font-display); color: var(--val-cyan); margin: 0 0 12px; }
+.academy-container > p { color: #b2c3cd; line-height: 1.7; }
+.academy-container h3, .guided-routines-heading { color: var(--val-cyan); font-family: var(--font-display); margin: 28px 0 18px; }
+.academy-toolbar, .academy-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.academy-toolbar { margin: 22px 0; }
+.academy-toolbar select { flex: 1 1 260px; background: #101e2b; color: #fff; border: 1px solid #527181; padding: 12px; border-radius: 4px; }
+.academy-toolbar label { color: #b2c3cd; }
+.academy-container button, .guided-playlist-card button, .btn-learn-task { border: 1px solid #3f8192; background: #12303d; color: #e5f6ff; font: 700 .85rem var(--font-hud); padding: 11px 15px; cursor: pointer; border-radius: 4px; }
+.academy-container button:hover, .guided-playlist-card button:hover, .btn-learn-task:hover { background: #235061; border-color: var(--val-cyan); }
+.btn-learn-task { margin-top: 15px; align-self: flex-start; }
+.academy-guide { border: 1px solid #335c70; padding: 24px; background: #101c28; border-radius: 6px; margin-bottom: 30px; }
+.academy-guide h3 { margin: 0 0 20px; font-size: 1.5rem; }
+.academy-guide h4 { color: #fff; margin: 20px 0 8px; }
+.academy-guide p, .academy-guide li { color: #b9cbd8; line-height: 1.7; }
+.academy-guide ol { padding-left: 22px; }
+.academy-guide .academy-progress { border-left: 3px solid var(--val-cyan); padding: 12px; background: #173342; color: var(--val-cyan); margin-top: 24px; }
+.guided-playlist-card { gap: 14px; min-width: 0; }
+.guided-playlist-card h3 { color: #fff; margin: 0; font-size: 1.3rem; }
+.guided-playlist-card p { color: #b9cbd8; line-height: 1.55; margin: 0; }
+.guided-playlist-card details { color: #b9cbd8; font-size: .85rem; }
+.guided-playlist-card summary, #academy-methods summary { cursor: pointer; color: var(--val-cyan); padding: 10px 0; }
+.guided-playlist-card ol { max-height: 280px; overflow-y: auto; padding-left: 22px; }
+.guided-playlist-card li { margin: 10px 0; }
+.guided-playlist-card .academy-actions { margin-top: auto; }
+#academy-methods details { padding: 8px 18px; background: #101c28; border: 1px solid #2d4554; margin: 10px 0; }
+#academy-methods p { color: #b9cbd8; line-height: 1.7; }
+#academy-sources a { color: #86deef; }
+#training-stage-tip { font-size: .78rem; color: #b4dbe9; max-width: 700px; line-height: 1.4; margin: 4px 0 0; }
+.academy-report-feedback { max-width: 760px; background: #15323c; color: #a5e8f7; padding: 14px 18px; line-height: 1.6; margin: 16px auto; text-align: left; }
+.academy-report-feedback:empty { display: none; }
+#cognitive-stimulus { position: fixed; z-index: 40; right: 24px; top: 95px; max-width: 275px; padding: 15px; border: 1px solid #90bbcf; background: rgba(9,20,30,.92); color: #fff; font: .85rem var(--font-hud); }
+#cognitive-stimulus[hidden] { display: none; }
+#cognitive-stimulus strong { display: block; color: #7cd6ff; font-size: 1.1rem; }
+#cognitive-stimulus p { margin: 10px 0; }
+#cognitive-stimulus span { color: #a9b8c4; }
+.academy-container button:focus-visible, .academy-container select:focus-visible, .btn-learn-task:focus-visible { outline: 2px solid var(--val-cyan); outline-offset: 3px; }
+.academy-toolbar [hidden] { display: none !important; }
+.academy-toolbar #academy-variant-label { display: flex; flex-direction: column; gap: 6px; }
+.academy-toolbar #academy-variant { flex: none; }
+
+.pl-stage-learning { color: var(--val-gray); font-size: .82rem; max-width: 700px; line-height: 1.5; margin: 8px 14px 0 0; }

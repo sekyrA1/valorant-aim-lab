@@ -6,7 +6,8 @@ import { findSafeBotPlacement } from './spawnSafety.js';
 import { DroneManager } from './drones.js';
 import { AgentPassManager } from './agentPasses.js';
 import { AntiRushManager, SITE_BOUNDS } from './antiRush.js';
-import { SkillTaskManager, SKILL_MODE_IDS, isSkillMode } from './skillTasks.js';
+import { SKILL_TASKS, SKILL_MODE_IDS, isSkillMode } from './skillTasks.js';
+import { TrainingTaskManager } from './trainingTasks.js';
 
 export const MODES = {
   RETAKE: 'retake',
@@ -43,7 +44,7 @@ export class GameModeManager {
     this.droneManager = new DroneManager(mapManager.scene);
     this.agentPassManager = new AgentPassManager(mapManager.scene);
     this.antiRushManager = new AntiRushManager(mapManager.scene, botManager, soundManager);
-    this.skillTaskManager = new SkillTaskManager(mapManager.scene);
+    this.skillTaskManager = new TrainingTaskManager(mapManager.scene, Math.random, playerController, soundManager);
 
     this.currentMode = MODES.HOLD_PIXEL;
     this.isRunning = false;
@@ -423,7 +424,7 @@ export class GameModeManager {
 
   initSkillTask(mode) {
     const mapData = this.mapManager.buildAimlabArena();
-    this.player.aimOnly = true;
+    this.player.aimOnly = !SKILL_TASKS[mode]?.movement;
     this.player.currentEyeHeight = this.player.STAND_EYE_HEIGHT || 1.7;
     this.player.isGrounded = true;
     this.player.landingDip = 0;
@@ -438,6 +439,7 @@ export class GameModeManager {
         this.ui.onScoreUpdate?.({ ...stats, killStreak: this.killStreak });
       },
       onPrompt: text => this.ui.onHoldPixelPrompt?.({ text, state: 'waiting' }),
+      onCognitive: data => this.ui.onCognitive?.(data),
       onKill: () => {
         this.killStreak++;
         this.sound.playTargetPop();
@@ -453,7 +455,7 @@ export class GameModeManager {
     const step = Math.min(dt, this.sessionTimer);
     this.skillTaskManager.update(step);
     this.sessionTimer = Math.max(0, this.sessionTimer - dt);
-    if (this.sessionTimer === 0) this.endGame(true, this.skillTaskManager.summary());
+    if (this.sessionTimer === 0) this.endGame(this.currentMode !== 'accuracy_floor' || this.skillTaskManager.metrics().accuracyFloorPassed, this.skillTaskManager.summary());
   }
 
   updateAntiRushMode(dt) {
@@ -1764,6 +1766,15 @@ export class GameModeManager {
     if (this.currentMode === MODES.DRONES) this.droneManager.clearAll();
     if (this.currentMode === MODES.JETT_NEON) this.agentPassManager.clearAll();
     if (this.currentMode === MODES.ANTI_RUSH) this.antiRushManager.clearAll();
+    const learningMetrics = isSkillMode(this.currentMode) ? {
+      variant: this.skillTaskManager.variant, automatic: this.skillTaskManager.isAutomatic(),
+      tracking: this.skillTaskManager.isTracking(), timeOnTarget: this.skillTaskManager.timeOnTarget,
+      sampleTime: this.skillTaskManager.sampleTime, expired: this.skillTaskManager.expired,
+      ...this.skillTaskManager.metrics?.()
+    } : undefined;
+    const elapsedSeconds = Math.max(0, this.maxTime - this.sessionTimer);
+    const trackingCoverage = this.currentMode === MODES.VOLTAIC_SMOOTH && this.smoothbotTotalTime > 0
+      ? Math.round(100 * this.smoothbotTimeOnTarget / this.smoothbotTotalTime) : undefined;
 
     // Handle playlist progression
     if (this.activePlaylist) {
@@ -1779,6 +1790,7 @@ export class GameModeManager {
         difficulty: this.difficultyId,
         variant: currentStage.variant,
         scenario: currentStage.scenario,
+        skillMetrics: learningMetrics, elapsedSeconds, trackingCoverage,
         score: this.score,
         accuracy: stageAccuracy,
         headshots: this.headshots,
@@ -1838,8 +1850,9 @@ export class GameModeManager {
         });
 
         const totalShots = totalHits + totalMisses;
-        const avgAccuracy = this.activePlaylist.custom
-          ? Math.round(this.playlistResults.reduce((sum, stage) => sum + stage.accuracy, 0) / this.playlistResults.length)
+        const measuredStages = this.playlistResults.filter(stage => stage.mode !== 'breath_reset');
+        const avgAccuracy = this.activePlaylist.custom || this.activePlaylist.guided
+          ? (measuredStages.length ? Math.round(measuredStages.reduce((sum, stage) => sum + stage.accuracy, 0) / measuredStages.length) : 0)
           : (totalShots > 0 ? Math.round((totalHits / totalShots) * 100) : 0);
 
         const summary = {
@@ -1889,6 +1902,8 @@ export class GameModeManager {
       this.ui.onGameOver({
         mode: this.currentMode,
         difficulty: this.difficultyId,
+        scenario: this.currentMode === MODES.HOLD_PIXEL ? this.holdScenario : undefined,
+        elapsedSeconds, trackingCoverage,
         isVictory,
         message,
         score: this.score,
@@ -1896,11 +1911,7 @@ export class GameModeManager {
         headshots: this.headshots,
         hits: this.hits,
         misses: this.misses,
-        skillMetrics: isSkillMode(this.currentMode) ? {
-          variant: this.skillTaskManager.variant, automatic: this.skillTaskManager.isAutomatic(),
-          tracking: this.skillTaskManager.isTracking(), timeOnTarget: this.skillTaskManager.timeOnTarget,
-          sampleTime: this.skillTaskManager.sampleTime, expired: this.skillTaskManager.expired
-        } : undefined,
+        skillMetrics: learningMetrics,
         kps: (this.hits / Math.max(1, this.maxTime - this.sessionTimer)).toFixed(2)
       });
     }

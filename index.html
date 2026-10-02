@@ -45,6 +45,7 @@
           <span class="pl-badge" id="pl-hud-badge">VOLTAIC BENCHMARK</span>
           <span class="pl-stage-title" id="pl-hud-stage-title">ETAPA 1/4: MICRO-FLICKS</span>
         </div>
+        <p id="training-stage-tip"></p>
         <div class="playlist-progress-bar">
           <div class="playlist-progress-fill" id="pl-hud-progress-fill" style="width: 25%;"></div>
         </div>
@@ -152,6 +153,7 @@
         <button class="lobby-tab" id="tab-playlists-view" type="button">
           <span style="color: var(--val-gold);">⚡</span> ROTINAS & MINHAS PLAYLISTS
         </button>
+        <button class="lobby-tab" id="tab-academy-view" type="button">📚 ESCOLA DE MIRA</button>
         <button class="lobby-tab" id="tab-performance-view" type="button">
           <span style="color: #00ff88;">📊</span> MEU DESEMPENHO & VOLTAIC RANK
         </button>
@@ -170,6 +172,8 @@
 <a href="#tasks-vertical">Verticalidade e timing <span>2</span></a>
 <a href="#tasks-reaction">Reação <span>1</span></a>
 <a href="#tasks-defense">Defesa e esquiva <span>3</span></a>
+<a href="#tasks-movement">Movimento e parada <span>2</span></a>
+<a href="#tasks-methods">Métodos conscientes <span>8</span></a>
 </nav>
 <section class="task-category" id="tasks-precision" aria-labelledby="tasks-precision-title">
 <header class="task-category-header"><h2 id="tasks-precision-title">Precisão e flicks <span>2 tasks</span></h2><p>Cadência e velocidade de primeiro tiro.</p></header>
@@ -339,6 +343,24 @@
           </div>
 </div>
 </section>
+<section class="task-category" id="tasks-movement" aria-labelledby="tasks-movement-title">
+<header class="task-category-header"><h2 id="tasks-movement-title">Movimento e parada <span>2 tasks</span></h2><p>Sincronização entre teclado, mouse e deadzone.</p></header>
+<div class="modes-cards" data-skill-category="movement"></div></section>
+<section class="task-category" id="tasks-methods" aria-labelledby="tasks-methods-title">
+<header class="task-category-header"><h2 id="tasks-methods-title">Métodos conscientes <span>8 tasks</span></h2><p>Confirmação, atenção, sensibilidade temporária e recuperação.</p></header>
+<div class="modes-cards" data-skill-category="methods"></div></section>
+      </div>
+    </div>
+    <div id="academy-view-container" style="display:none;">
+      <div class="modes-grid-container academy-container">
+        <h2>Escola de mira</h2><p>Aprenda a execução, pratique e compare resultados na mesma condição. Os guias cobrem todas as tasks.</p>
+        <div class="academy-toolbar"><label for="academy-task">Task para aprender</label><select id="academy-task"></select>
+          <label id="academy-variant-label" hidden>Variante<select id="academy-variant" aria-label="Variante da lição"></select></label>
+          <button id="academy-start-task" type="button">Praticar esta task</button></div>
+        <article id="academy-task-guide" class="academy-guide"></article>
+        <h3>Rotinas com objetivo e instruções</h3><div id="academy-routines" class="playlists-cards"></div>
+        <h3>Método de treino</h3><div id="academy-methods"></div>
+        <h3>Referências para leitura</h3><ul id="academy-sources"></ul>
       </div>
     </div>
 
@@ -409,6 +431,7 @@
             </div>
 
           </div>
+          <h2 class="guided-routines-heading">Playlists guiadas</h2><div id="guided-playlist-list" class="playlists-cards"></div>
           <section id="custom-playlists" class="custom-playlists" aria-labelledby="custom-playlists-heading">
             <div class="custom-playlists-header">
               <div><h2 id="custom-playlists-heading">Minhas playlists</h2>
@@ -639,6 +662,7 @@
       <div class="modal-content report-content" style="position: relative;">
         <button class="close-modal-btn" id="btn-close-report" title="Voltar ao Menu Principal" style="position: absolute; top: 16px; right: 20px;">✕</button>
         <h1 class="report-banner victory" id="report-title">VITÓRIA</h1>
+        <div id="report-learning-feedback" class="academy-report-feedback" role="status"></div>
         <div class="report-submessage" id="report-submessage">SPIKE DEFUSED • CLUTCH 1v5</div>
 
         <div class="report-stats-grid">
@@ -680,6 +704,7 @@
       </div>
     </div>
 
+    <aside id="cognitive-stimulus" hidden aria-live="off"><strong id="cognitive-text"></strong><p>[Q] SIM / AZUL • [E] NÃO / LARANJA</p><span id="cognitive-stats"></span></aside>
     <!-- PERFORMANCE & VOLTAIC RANK HUB MODAL -->
     <div class="modal-backdrop" id="performance-modal">
       <div class="modal-content performance-content">
