@@ -7,6 +7,8 @@ class SoundManager {
     this.masterVolume = 0.8;
     this.sfxVolume = 0.9;
     this.isMuted = false;
+    this.samples = new Map();
+    this.samplesLoading = null;
   }
 
   init() {
@@ -17,6 +19,58 @@ class SoundManager {
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    this._loadSamples();
+  }
+
+  _loadSamples() {
+    if (this.samplesLoading || !this.ctx) return;
+    const files = {
+      vandal: ['rifle-ak-01.wav', 'rifle-ak-02.wav'],
+      phantom: ['rifle-ar-01.wav', 'rifle-ar-02.wav'],
+      guardian: ['rifle-ar-01.wav', 'rifle-ar-02.wav'],
+      spectre: ['rifle-smg-01.wav'],
+      operator: ['rifle-sniper-01.wav', 'rifle-sniper-02.wav'],
+      classic: ['pistol-01.wav', 'pistol-02.wav'],
+      sheriff: ['revolver-01.wav', 'revolver-02.wav'],
+      ui: ['ui-select-1.ogg', 'ui-select-2.ogg', 'ui-select-3.ogg'],
+      uiSwitch: ['ui-switch.ogg'],
+      bodyHit: ['hit-body-1.ogg', 'hit-body-2.ogg', 'hit-body-3.ogg', 'hit-body-4.ogg', 'hit-body-5.ogg'],
+      headHit: ['hit-head-1.ogg', 'hit-head-2.ogg', 'hit-head-3.ogg', 'hit-head-4.ogg', 'hit-head-5.ogg'],
+      targetPop: ['target-pop-1.ogg', 'target-pop-2.ogg', 'target-pop-3.ogg', 'target-pop-4.ogg', 'target-pop-5.ogg'],
+      kill: ['kill-confirm-1.ogg', 'kill-confirm-2.ogg', 'kill-confirm-3.ogg'],
+      step: ['footstep-stone-l1.ogg', 'footstep-stone-l2.ogg', 'footstep-stone-l3.ogg',
+        'footstep-stone-r1.ogg', 'footstep-stone-r2.ogg', 'footstep-stone-r3.ogg'],
+      knife: ['knife-swish.ogg', 'knife-swish-2.ogg'],
+      reload: ['rifle-reload.wav'],
+      reloadMetal: ['reload-metal-click.ogg', 'reload-latch.ogg', 'reload-handle.ogg']
+    };
+    this.samplesLoading = Promise.all(Object.entries(files).map(async ([key, names]) => {
+      const buffers = await Promise.all(names.map(async (name) => {
+        const response = await fetch(`${import.meta.env.BASE_URL}audio/${name}`);
+        if (!response.ok) throw new Error(`Audio sample unavailable: ${name}`);
+        return this.ctx.decodeAudioData(await response.arrayBuffer());
+      }));
+      this.samples.set(key, buffers);
+    })).catch((error) => {
+      this.samplesLoading = null;
+      console.warn('Using procedural audio fallback:', error);
+    });
+  }
+
+  _playSample(key, volume = 0.55, rate = 1) {
+    const choices = this.samples.get(key);
+    if (!this.ctx || !choices?.length) return false;
+
+    const source = this.ctx.createBufferSource();
+    const gain = this.ctx.createGain();
+    const effectiveVol = this.isMuted ? 0 : this.masterVolume * this.sfxVolume * volume;
+    source.buffer = choices[Math.floor(Math.random() * choices.length)];
+    source.playbackRate.setValueAtTime(rate, this.ctx.currentTime);
+    gain.gain.setValueAtTime(effectiveVol, this.ctx.currentTime);
+    source.connect(gain);
+    gain.connect(this.ctx.destination);
+    source.start();
+    return true;
   }
 
   setVolume(master, sfx) {
@@ -36,6 +90,7 @@ class SoundManager {
   // Gunshot sound tailored by weapon type
   playGunfire(type = 'vandal') {
     if (!this.ctx) return;
+    if (this._playSample(type, type === 'operator' ? 0.68 : 0.52)) return;
     const now = this.ctx.currentTime;
 
     if (type === 'vandal') {
@@ -258,6 +313,7 @@ class SoundManager {
   // Tactical Knife Slash Swish
   playKnifeSlash() {
     if (!this.ctx) return;
+    if (this._playSample('knife', 0.55)) return;
     const now = this.ctx.currentTime;
     const bufferSize = this.ctx.sampleRate * 0.18;
     const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -284,6 +340,7 @@ class SoundManager {
   // Tactical Knife Hit
   playKnifeHit() {
     if (!this.ctx) return;
+    if (this._playSample('bodyHit', 0.55)) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this._createGain(now, 0.12, 0.6, 0.001);
@@ -299,6 +356,7 @@ class SoundManager {
   // Rewarding ammo refill chime on kill!
   playAmmoRefill() {
     if (!this.ctx) return;
+    if (this._playSample('kill', 0.45, 1.35)) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this._createGain(now, 0.14, 0.35, 0.001);
@@ -314,6 +372,7 @@ class SoundManager {
   // The iconic Valorant Headshot "DINK" sound!
   playHeadshot() {
     if (!this.ctx) return;
+    if (this._playSample('headHit', 0.55)) return;
     const now = this.ctx.currentTime;
 
     // Metallic chime high frequency fundamental
@@ -353,6 +412,7 @@ class SoundManager {
   // Body hit feedback
   playBodyHit() {
     if (!this.ctx) return;
+    if (this._playSample('bodyHit', 0.42)) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this._createGain(now, 0.09, 0.45, 0.001);
@@ -368,6 +428,7 @@ class SoundManager {
   // Aimlab / Kovaak target pop / shatter sound
   playTargetPop() {
     if (!this.ctx) return;
+    if (this._playSample('targetPop', 0.5)) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this._createGain(now, 0.12, 0.5, 0.001);
@@ -385,6 +446,7 @@ class SoundManager {
   // Kill chime / Valorant kill banner sound
   playKillBanner(streak = 1) {
     if (!this.ctx) return;
+    if (this._playSample('kill', 0.5, 0.9 + Math.min(streak, 5) * 0.06)) return;
     const now = this.ctx.currentTime;
     // Streak pitches: 1st kill = low, 5th ACE = epic high octave
     const basePitches = [330, 392, 494, 587, 740];
@@ -414,6 +476,7 @@ class SoundManager {
   // Footstep sound
   playFootstep(type = 'run') {
     if (!this.ctx) return;
+    if (this._playSample('step', type === 'walk' ? 0.28 : 0.43, type === 'walk' ? 0.9 : 1)) return;
     const now = this.ctx.currentTime;
     const bufferSize = this.ctx.sampleRate * 0.05;
     const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
@@ -453,6 +516,7 @@ class SoundManager {
   // Land impact
   playLand() {
     if (!this.ctx) return;
+    if (this._playSample('bodyHit', 0.7, 0.72)) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this._createGain(now, 0.12, 0.35, 0.001);
@@ -549,6 +613,10 @@ class SoundManager {
   // Reload sound
   playReload() {
     if (!this.ctx) return;
+    if (this._playSample('reload', 0.62)) {
+      setTimeout(() => this._playSample('reloadMetal', 0.42, 0.92 + Math.random() * 0.16), 210);
+      return;
+    }
     const now = this.ctx.currentTime;
     // Click 1 (mag drop)
     const osc1 = this.ctx.createOscillator();
@@ -576,6 +644,7 @@ class SoundManager {
   // UI button click
   playUIClick() {
     if (!this.ctx) return;
+    if (this._playSample('ui', 0.22)) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this._createGain(now, 0.03, 0.2, 0.001);
