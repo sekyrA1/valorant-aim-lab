@@ -19,6 +19,8 @@ export class PlayerController {
     // Eye levels
     this.STAND_EYE_HEIGHT = 1.70;
     this.CROUCH_EYE_HEIGHT = 1.10;
+    this.CROUCH_TRANSITION_TIME = .12;
+    this.STAND_TRANSITION_TIME = .16;
     this.currentEyeHeight = this.STAND_EYE_HEIGHT;
     this.landingDip = 0;
 
@@ -308,6 +310,16 @@ export class PlayerController {
     this.isCrouching = !this.aimOnly && this.keys.crouch;
     this.isWalking = this.keys.walk;
 
+    // Change stance before collision resolution. Move the eye position by the
+    // same amount as the body height so the feet stay put, including in the air.
+    const targetHeight = this.isCrouching ? this.CROUCH_EYE_HEIGHT : this.STAND_EYE_HEIGHT;
+    const heightGap = targetHeight - this.currentEyeHeight;
+    const transitionTime = this.isCrouching ? this.CROUCH_TRANSITION_TIME : this.STAND_TRANSITION_TIME;
+    const heightStep = (this.STAND_EYE_HEIGHT - this.CROUCH_EYE_HEIGHT) * dt / transitionTime;
+    const heightDelta = Math.sign(heightGap) * Math.min(Math.abs(heightGap), heightStep);
+    this.currentEyeHeight += heightDelta;
+    this.position.y += heightDelta;
+
     const baseRun = (weaponManager && weaponManager.currentWeaponType && weaponManager.currentWeaponType.isMelee) ? 7.15 : this.RUN_SPEED;
     let targetMaxSpeed = baseRun;
     if (this.isCrouching) {
@@ -418,7 +430,7 @@ export class PlayerController {
     }
 
     const targetEyeY = groundHeight + this.currentEyeHeight;
-    if (this.position.y <= targetEyeY) {
+    if (this.position.y <= targetEyeY + 1e-6) {
       if (!this.isGrounded && this.velocity.y < -3.0) {
         // Just landed!
         this.soundManager.playLand();
@@ -432,10 +444,7 @@ export class PlayerController {
       this.isGrounded = false;
     }
 
-    // 6. Crouch Transition & Landing Dip Recovery
-    const targetHeight = this.isCrouching ? this.CROUCH_EYE_HEIGHT : this.STAND_EYE_HEIGHT;
-    this.currentEyeHeight += (targetHeight - this.currentEyeHeight) * (dt * 12);
-
+    // 6. Landing Dip Recovery
     if (this.landingDip > 0) {
       this.landingDip = Math.max(0, this.landingDip - dt * 0.4);
     }
