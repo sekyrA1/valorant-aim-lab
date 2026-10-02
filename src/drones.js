@@ -162,7 +162,8 @@ export class DroneManager {
 
     const difficultySpeed = this.difficulty?.speed ?? 1;
     const moveDirection = this.randomMoveDirection();
-    const velocity = moveDirection.multiplyScalar((2.0 + Math.random() * 0.85) * difficultySpeed);
+    const velocity = moveDirection.multiplyScalar((2.7 + Math.random() * 1.0) * difficultySpeed);
+    visual.group.scale.setScalar(0.7);
     const drone = {
       ...visual,
       type: 'drone',
@@ -172,7 +173,7 @@ export class DroneManager {
       velocity,
       desiredVelocity: velocity.clone(),
       directionTimer: 0.35 + Math.random() * 0.65,
-      fireCooldown: 1.05 + Math.random() * 1.15,
+      fireCooldown: 0.6 + Math.random() * 0.6,
       charging: false,
       chargeLeft: 0,
       chargeDuration: 0,
@@ -227,7 +228,7 @@ export class DroneManager {
     const position = drone.group.position;
     drone.directionTimer -= dt;
     if (drone.directionTimer <= 0) {
-      const speed = (2.0 + Math.random() * 0.85) * difficulty.speed;
+      const speed = (2.7 + Math.random() * 1.0) * difficulty.speed;
       drone.desiredVelocity.copy(this.randomMoveDirection()).multiplyScalar(speed);
       drone.directionTimer = 0.4 + Math.random() * 0.75;
     }
@@ -271,7 +272,7 @@ export class DroneManager {
         drone.charging = false;
         drone.warning.visible = false;
         drone.eye.scale.setScalar(1);
-        drone.fireCooldown = (2.35 + Math.random() * 0.85) * difficulty.botFireRate;
+        drone.fireCooldown = (1.55 + Math.random() * 0.6) * difficulty.botFireRate;
       }
       return;
     }
@@ -280,7 +281,7 @@ export class DroneManager {
     drone.fireCooldown -= dt;
     if (drone.fireCooldown <= 0) {
       drone.charging = true;
-      drone.chargeDuration = THREE.MathUtils.clamp(0.76 * difficulty.reaction, 0.52, 1.05);
+      drone.chargeDuration = THREE.MathUtils.clamp(0.76 * difficulty.reaction * 0.72, 0.36, 0.85);
       drone.chargeLeft = drone.chargeDuration;
       drone.aimPoint.copy(player.position).addScaledVector(player.velocity, 0.12);
       if (this.warningCallback) this.warningCallback();
@@ -317,7 +318,7 @@ export class DroneManager {
     this.projectiles.push({
       group,
       trail,
-      velocity: direction.multiplyScalar(7.0 + difficulty.speed * 5.0),
+      velocity: direction.multiplyScalar(12.0 + difficulty.speed * 7.5),
       radius: 0.2,
       age: 0,
       damage: Math.round(11 * difficulty.botDamage)
@@ -377,7 +378,7 @@ export class DroneManager {
       const distance = toDrone.dot(rayDirection);
       if (distance < 0 || distance > maxRange) continue;
       const pointOnRay = this.tmpPoint.copy(origin).addScaledVector(rayDirection, distance);
-      const radius = DRONE_RADIUS + (drone.group.scale.x - 1) * 0.25;
+      const radius = DRONE_RADIUS * drone.group.scale.x;
       if (pointOnRay.distanceToSquared(drone.group.position) > radius * radius) continue;
       if (closest && distance >= closest.distance) continue;
 

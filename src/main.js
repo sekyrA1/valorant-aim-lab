@@ -100,6 +100,7 @@ const gameModeManager = new GameModeManager(
         [MODES.RANGE]: 'THE RANGE - TREINO',
         [MODES.HOLD_PIXEL]: 'ANGLE HOLD - TRAVESSIA CONTÍNUA',
         [MODES.DRONES]: 'DRONE SURVIVAL - DESVIE & ELIMINE',
+        [MODES.JETT_NEON]: 'JETT & NEON - PASSAGENS DE ATAQUE',
         [MODES.VOLTAIC_STATIC]: 'VOLTAIC 1w6ts - STATIC CLICKING',
         [MODES.VOLTAIC_PASU]: 'VOLTAIC PASU - DYNAMIC BOUNCE',
         [MODES.VOLTAIC_SMOOTH]: 'VOLTAIC - SMOOTHBOT 3D',
@@ -130,6 +131,7 @@ const gameModeManager = new GameModeManager(
         const showPrompt = (
           mode === MODES.HOLD_PIXEL ||
           mode === MODES.DRONES ||
+          mode === MODES.JETT_NEON ||
           mode === MODES.VOLTAIC_STATIC ||
           mode === MODES.VOLTAIC_PASU ||
           mode === MODES.VOLTAIC_SMOOTH ||
@@ -142,6 +144,9 @@ const gameModeManager = new GameModeManager(
         holdBanner.style.display = showPrompt ? 'block' : 'none';
         if (mode === MODES.DRONES) {
           holdBanner.innerText = 'SOBREVIVA • DRONES SURGEM NO CONE FRONTAL DE 90°';
+          holdBanner.className = 'hold-prompt waiting';
+        } else if (mode === MODES.JETT_NEON) {
+          holdBanner.innerText = 'JETT VOA LANÇANDO FACAS • NEON DESLIZA DISPARANDO';
           holdBanner.className = 'hold-prompt waiting';
         }
       }
@@ -391,7 +396,10 @@ function processFirearmRaycast(origin, camDir, maxRange, shotInfo) {
   // 1. Raycast Bots (respects colliders/walls)
   const botHit = botManager.raycastBullet(origin, camDir, maxRange, mapManager.colliders);
   const droneHit = gameModeManager.droneManager.raycastBullet(origin, camDir, maxRange);
-  const targetHit = droneHit && (!botHit || droneHit.distance < botHit.distance) ? droneHit : botHit;
+  const agentHit = gameModeManager.agentPassManager.raycastBullet(origin, camDir, maxRange);
+  const targetHit = [botHit, droneHit, agentHit]
+    .filter(Boolean)
+    .reduce((closest, hit) => !closest || hit.distance < closest.distance ? hit : closest, null);
 
   // 2. Raycast Map Geometry (stone walls, radianite boxes, floors, arches)
   const mapRaycaster = new THREE.Raycaster(origin, camDir, 0.1, maxRange);
@@ -796,6 +804,7 @@ document.getElementById('btn-pause-lobby').addEventListener('click', () => {
   hudElement.style.display = 'none';
   lobbyScreen.style.display = 'flex';
   gameModeManager.droneManager.clearAll();
+  gameModeManager.agentPassManager.clearAll();
   botManager.clearAll();
   mapManager.clearMap();
   try {
@@ -831,6 +840,7 @@ function returnToLobbyFromReport() {
   gameModeManager.isRunning = false;
   gameModeManager.activePlaylist = null;
   gameModeManager.droneManager.clearAll();
+  gameModeManager.agentPassManager.clearAll();
   botManager.clearAll();
   mapManager.clearMap();
   try {
