@@ -543,76 +543,36 @@ export class MapManager {
     dir.position.set(8, 18, 10);
     group.add(dir);
 
-    // Setup Scenario Specific Obstacles and Peek Positions
-    let startPos = new THREE.Vector3(6.5, 0, -16.6);
-    let endPos = new THREE.Vector3(1.2, 0, -16.6);
-    let isJiggle = false;
-    let strafeSpeed = 6.4;
-
-    if (scenarioId === 'ascent_heaven') {
-      // Elevated Heaven Balcony Corner
-      const heavenFloor = new THREE.Mesh(new THREE.BoxGeometry(18, 0.5, 6), wallMat);
-      heavenFloor.position.set(0, 4.5, -16);
-      group.add(heavenFloor);
-      this.addColliderBox(-9, 4.2, -19, 9, 4.8, -13);
-
-      // Heaven Corner blocking wall
-      const cornerWall = new THREE.Mesh(new THREE.BoxGeometry(8, 6, 1), wallMat);
-      cornerWall.position.set(6, 7.5, -14);
-      group.add(cornerWall);
-      this.addColliderBox(2, 4.5, -14.5, 10, 11, -13.5);
-
-      startPos = new THREE.Vector3(4.2, 4.8, -15);
-      endPos = new THREE.Vector3(1.2, 4.8, -15);
-      isJiggle = true; // Fast tight jiggle peek
-      strafeSpeed = 6.75;
-
-    } else if (scenarioId === 'tight_pixel') {
-      // Narrow 1.2m gap between two huge Radianite containers
-      // Left container
-      const leftBox = new THREE.Mesh(new THREE.BoxGeometry(6, 5, 3), boxMat);
-      leftBox.position.set(-3.6, 2.5, -14);
-      group.add(leftBox);
-      this.addColliderBox(-6.6, 0, -15.5, -0.6, 5, -12.5);
-
-      // Right container
-      const rightBox = new THREE.Mesh(new THREE.BoxGeometry(6, 5, 3), boxMat);
-      rightBox.position.set(3.6, 2.5, -14);
-      group.add(rightBox);
-      this.addColliderBox(0.6, 0, -15.5, 6.6, 5, -12.5);
-
-      // Bot approaches from behind a crate and appears through the gap.
-      const side = Math.random() > .5 ? 1 : -1;
-      startPos = new THREE.Vector3(4.5 * side, 0, -16);
-      endPos = new THREE.Vector3(0, 0, -16);
-      isJiggle = false;
-      strafeSpeed = 6.75;
-
-    } else {
-      // 'ascent_main' and 'unpredictable': Corner Wall on the right
-      const cornerWall = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 2), wallMat);
-      cornerWall.position.set(6.5, 4, -15);
-      group.add(cornerWall);
-      this.addColliderBox(2.5, 0, -16, 10.5, 8, -14);
-
-      if (scenarioId === 'unpredictable') {
-        const chooseJiggle = Math.random() > 0.5;
-        isJiggle = chooseJiggle;
-        startPos = new THREE.Vector3(6.5, 0, -16.6);
-        endPos = chooseJiggle ? new THREE.Vector3(1.8, 0, -16.6) : new THREE.Vector3(0.5, 0, -16.6);
-      } else {
-        startPos = new THREE.Vector3(6.5, 0, -16.6);
-        endPos = new THREE.Vector3(1.0, 0, -16.6);
-        isJiggle = false;
-      }
+    // Two occluding walls frame a clear, continuous crossing lane behind them.
+    const elevated = scenarioId === 'ascent_heaven';
+    const laneY = elevated ? 4.8 : 0;
+    const gap = scenarioId === 'tight_pixel' ? 0.6 : elevated ? 2 : 2.5;
+    if (elevated) {
+      const platform = new THREE.Mesh(new THREE.BoxGeometry(24, 0.5, 6), wallMat);
+      platform.position.set(0, 4.55, -16);
+      group.add(platform);
+      this.addColliderBox(-12, 4.3, -19, 12, 4.8, -13);
     }
+    for (const side of [-1, 1]) {
+      const width = 10.5 - gap;
+      const height = elevated ? 6 : 8;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, 2),
+        scenarioId === 'tight_pixel' ? boxMat : wallMat);
+      wall.position.set(side * (gap + width / 2), laneY + height / 2, -14.5);
+      group.add(wall);
+      const minX = side < 0 ? -10.5 : gap;
+      const maxX = side < 0 ? -gap : 10.5;
+      this.addColliderBox(minX, laneY, -15.5, maxX, laneY + height, -13.5);
+    }
+    const startPos = new THREE.Vector3(-gap - 1.5, laneY, -16.6);
+    const endPos = new THREE.Vector3(gap + 1.5, laneY, -16.6);
+    const strafeSpeed = elevated || scenarioId === 'tight_pixel' ? 6.75 : 6.4;
 
     return {
       spawnPos: new THREE.Vector3(0, 0, 6),
       spawnYawDeg: 0,
       peekStart: startPos,
       peekEnd: endPos,
-      isJiggle,
       strafeSpeed
     };
   }

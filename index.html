@@ -88,7 +88,7 @@
         <div class="reload-prompt" id="hud-reload-prompt">[R] RECARREGAR</div>
       </div>
 
-      <!-- Hold de Pixel Reaction Time Prompt Banner -->
+      <!-- Angle Hold Reaction Time Prompt Banner -->
       <div id="hold-pixel-prompt" class="hold-prompt">SEGURE O PIXEL... PREPARE-SE</div>
 
       <!-- Stage Transition Interstitial Overlay -->
@@ -143,10 +143,10 @@
       </div>
       <div class="lobby-tabs-row">
         <button class="lobby-tab active" id="tab-modes-view" type="button">
-          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (14)
+          <span style="color: var(--val-cyan);">🎯</span> MODOS INDIVIDUAIS (8)
         </button>
         <button class="lobby-tab" id="tab-playlists-view" type="button">
-          <span style="color: var(--val-gold);">⚡</span> ROTINAS & PLAYLISTS (5 SEQUÊNCIAS)
+          <span style="color: var(--val-gold);">⚡</span> ROTINAS & PLAYLISTS (3 SEQUÊNCIAS)
         </button>
         <button class="lobby-tab" id="tab-performance-view" type="button">
           <span style="color: #00ff88;">📊</span> MEU DESEMPENHO & VOLTAIC RANK
@@ -158,18 +158,6 @@
         <div class="modes-grid-container">
           <div class="section-label">SELECIONE O MODO DE TREINO INDIVIDUAL:</div>
           <div class="modes-cards">
-            <!-- Mode 1: Retake -->
-            <div class="mode-card selected" data-mode="retake" id="card-retake">
-            <div>
-              <span class="mode-badge-tag">SIMULAÇÃO REAL</span>
-              <h2 class="mode-title">RETAKE SITE A</h2>
-              <p class="mode-desc">Defuse a Spike plantada na Ascent A! Elimine os bots defensores com pré-mira, counter-strafe e jiggle peek.</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">Tempo: 45s • 5 Bots</span>
-              <span style="color: var(--val-cyan); font-weight: 700;">★ TÁTICO</span>
-            </div>
-          </div>
 
           <!-- Mode 2: Voltaic 1w6ts Static Clicking -->
           <div class="mode-card" data-mode="voltaic_static" id="card-voltaic-static">
@@ -215,63 +203,11 @@
             <div>
               <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ VOLTAIC SPEED</span>
               <h2 class="mode-title">TARGET SWITCH</h2>
-              <p class="mode-desc">3 a 5 alvos em faixas separadas. Elimine um e troque imediatamente para o próximo para ganhar bônus de transição.</p>
+              <p class="mode-desc">3 a 5 alvos em faixas separadas, com mudanças independentes de direção e velocidade. Elimine um e troque imediatamente para o próximo.</p>
             </div>
             <div class="mode-card-bottom">
               <span class="mode-stats-summary">Tempo: 60s • Bônus Rapid Switch</span>
               <span style="color: #a855f7; font-weight: 700;">🟣 SWITCH</span>
-            </div>
-          </div>
-
-          <!-- Mode 6: Yprac Pre-Aim Ascent A -->
-          <div class="mode-card" data-mode="yprac_preaim" id="card-yprac-preaim">
-            <div>
-              <span class="mode-badge-tag" style="color: #ff9900; border-color: #ff9900;">🎯 ESTILO CS YPRAC</span>
-              <h2 class="mode-title">YPRAC PRE-AIM</h2>
-              <p class="mode-desc">Percurso de 6 checkpoints isolando cada ângulo da Ascent A: A-Main, Wine, Gerador, Default, Sacada de Heaven e Hell.</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">6 Ângulos • Medição de ms</span>
-              <span style="color: #ff9900; font-weight: 700;">📐 PRE-AIM</span>
-            </div>
-          </div>
-
-          <!-- Mode 7: Yprac Peek & Jiggle Duel -->
-          <div class="mode-card" data-mode="yprac_peek_duel" id="card-yprac-peek-duel">
-            <div>
-              <span class="mode-badge-tag" style="color: #00f0ff; border-color: #00f0ff;">🎯 CS/VAL TACTICAL</span>
-              <h2 class="mode-title">PEEK &amp; JIGGLE DUEL</h2>
-              <p class="mode-desc">Duelos com detecção de Deadzone! Se atirar em movimento (&gt;1.4 m/s), haverá erro de dispersão. Faça counter-strafe seco para 1-taps Radiant!</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">5 Duelos • Detecção Deadzone</span>
-              <span style="color: #00f0ff; font-weight: 700;">⚡ DEADZONE</span>
-            </div>
-          </div>
-
-          <!-- Mode 8: Yprac Spray Transfer -->
-          <div class="mode-card" data-mode="yprac_spray" id="card-yprac-spray">
-            <div>
-              <span class="mode-badge-tag" style="color: #eab308; border-color: #eab308;">🔥 CONTROLE DE RECUO</span>
-              <h2 class="mode-title">SPRAY TRANSFER</h2>
-              <p class="mode-desc">Transfira a rajada de spray contínuo de Vandal/Phantom entre 2 a 3 bots em posições táticas da Ascent A mantendo o padrão de recuo!</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">5 Séries • Recoil Control</span>
-              <span style="color: #eab308; font-weight: 700;">💥 SPRAY</span>
-            </div>
-          </div>
-
-          <!-- Mode 9: Yprac Site Defense -->
-          <div class="mode-card" data-mode="yprac_defense" id="card-yprac-defense">
-            <div>
-              <span class="mode-badge-tag" style="color: #ff4655; border-color: #ff4655;">🛡 DEFESA DE SITE</span>
-              <h2 class="mode-title">YPRAC DEFENSE</h2>
-              <p class="mode-desc">Ancorado no Bomb A, enfrente 3 ondas coordenadas de invasores empurrando por Main, Wine e Heaven. Sobreviva ao rush!</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">3 Ondas • 12 Invasores</span>
-              <span style="color: #ff4655; font-weight: 700;">⚔ DEFESA</span>
             </div>
           </div>
 
@@ -314,29 +250,16 @@
             </div>
           </div>
 
-          <!-- Mode 9: The Range -->
-          <div class="mode-card" data-mode="range" id="card-range">
-            <div>
-              <span class="mode-badge-tag">ESTANDE DE TIRO</span>
-              <h2 class="mode-title">THE RANGE</h2>
-              <p class="mode-desc">Treino livre sem limite de tempo com bots e alvos para você calibrar sua sensibilidade e aquecer.</p>
-            </div>
-            <div class="mode-card-bottom">
-              <span class="mode-stats-summary">Tempo Livre • Treino</span>
-              <span style="color: var(--val-cyan); font-weight: 700;">♾ INFINITO</span>
-            </div>
-          </div>
-
-          <!-- Mode 10: Hold de Pixel -->
-          <div class="mode-card" data-mode="hold_pixel" id="card-hold-pixel">
+          <!-- Mode 10: Angle Hold -->
+          <div class="mode-card selected" data-mode="hold_pixel" id="card-hold-pixel">
             <div>
               <span class="mode-badge-tag">TREINO DE REAÇÃO</span>
-              <h2 class="mode-title">HOLD DE PIXEL</h2>
-              <p class="mode-desc">Segure pixels e ângulos reais contra bots que abrem de wide swing ou jiggle peek. Meça sua velocidade de reação milissegundo a milissegundo!</p>
+              <h2 class="mode-title">ANGLE HOLD</h2>
+              <p class="mode-desc">Bots atravessam sem parar entre duas paredes. Ao chegar ao outro lado ou ser eliminado, um novo bot entra de um lado aleatório. Treine reação e precisão.</p>
               <div class="scenario-selector-pills">
                 <button class="pill-scenario active" data-scenario="ascent_main" type="button">A-Main</button>
                 <button class="pill-scenario" data-scenario="ascent_heaven" type="button">Heaven</button>
-                <button class="pill-scenario" data-scenario="tight_pixel" type="button">Crack 1mm</button>
+                <button class="pill-scenario" data-scenario="tight_pixel" type="button">Fresta</button>
                 <button class="pill-scenario" data-scenario="unpredictable" type="button">Aleatório</button>
               </div>
             </div>
@@ -352,7 +275,7 @@
       <!-- 2. Playlist Selection Grid (Voltaic Benchmarks & CS Yprac Routines) -->
       <div id="playlists-view-container" style="display: none;">
         <div class="modes-grid-container">
-          <div class="section-label">SELECIONE UMA ROTINA COMPLETA DE TREINO (5 SEQUÊNCIAS COM DESEMPENHO VOLTAIC & YPRAC):</div>
+          <div class="section-label">SELECIONE UMA ROTINA COMPLETA DE TREINO (3 SEQUÊNCIAS COM ALVOS & ANGLE HOLD):</div>
           <div class="playlists-cards">
             <!-- Playlist 1: Voltaic Benchmark -->
             <div class="playlist-card selected" data-playlist="voltaic_benchmark" id="pl-card-voltaic">
@@ -361,13 +284,13 @@
                 <span class="pl-stages-count">5 ETAPAS • OFICIAL</span>
               </div>
               <h2 class="mode-title">VOLTAIC BENCHMARK OFICIAL</h2>
-              <p class="mode-desc">A rotina de mira definitiva: 1w6ts Static Clicking, Pasu Dynamic Bouncing, Smoothbot 3D Harmonic Tracking, Pat Target Switch e Hold de Pixel 1mm.</p>
+              <p class="mode-desc">A rotina de mira definitiva: 1w6ts Static Clicking, Pasu Dynamic Bouncing, Smoothbot 3D Harmonic Tracking, Pat Target Switch e Angle Angle Hold (fresta).</p>
               <div class="pl-stages-row">
                 <span class="pl-stage-chip"><span class="chip-num">1</span> 1w6ts Static (30s)</span>
                 <span class="pl-stage-chip"><span class="chip-num">2</span> Pasu Bounce (30s)</span>
                 <span class="pl-stage-chip"><span class="chip-num">3</span> Smoothbot 3D (30s)</span>
                 <span class="pl-stage-chip"><span class="chip-num">4</span> Target Switch (30s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">5</span> Hold 1mm (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">5</span> Angle Hold (fresta) (30s)</span>
               </div>
               <div class="mode-card-bottom">
                 <span class="mode-stats-summary" id="pl-record-voltaic">Recorde: —</span>
@@ -375,40 +298,19 @@
               </div>
             </div>
 
-            <!-- Playlist 2: Yprac Ascent -->
-            <div class="playlist-card" data-playlist="yprac_ascent" id="pl-card-yprac">
-              <div class="pl-header">
-                <span class="mode-badge-tag" style="color: #ff9900; border-color: #ff9900;">🎯 ESTILO CS YPRAC</span>
-                <span class="pl-stages-count">5 ETAPAS • TÁTICO</span>
-              </div>
-              <h2 class="mode-title">YPRAC ASCENT: TACTICAL MASTERY</h2>
-              <p class="mode-desc">Inspirado nos mapas clássicos Yprac do CS: percurso de 6 checkpoints de pre-aim, duelo com deadzone stop, controle de spray contínuo, defesa de site e clutch 1v5.</p>
-              <div class="pl-stages-row">
-                <span class="pl-stage-chip"><span class="chip-num">1</span> Pre-Aim 6 Ângulos (60s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">2</span> Peek & Deadzone (60s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">3</span> Spray Transfer (60s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">4</span> Defesa de Site (60s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">5</span> Retake Clutch (45s)</span>
-              </div>
-              <div class="mode-card-bottom">
-                <span class="mode-stats-summary" id="pl-record-yprac">Recorde: —</span>
-                <button class="btn-play-sm btn-start-playlist-card" data-playlist="yprac_ascent">INICIAR ROTINA</button>
-              </div>
-            </div>
-
             <!-- Playlist 3: Pro Warmup -->
             <div class="playlist-card" data-playlist="pro_warmup" id="pl-card-warmup">
               <div class="pl-header">
                 <span class="mode-badge-tag" style="color: var(--val-red); border-color: var(--val-red);">🔥 AQUECIMENTO PRO</span>
-                <span class="pl-stages-count">4 ETAPAS • 2.5 MIN</span>
+                <span class="pl-stages-count">4 ETAPAS • 2 MIN 15 S</span>
               </div>
               <h2 class="mode-title">AQUECIMENTO PRÉ-RANQUEADA</h2>
-              <p class="mode-desc">Ativação neuro-motora antes de buscar partida: calibração livre no Range, precisão Voltaic 1w6ts, transferência rápida de spray e retake decisivo sob pressão da Spike.</p>
+              <p class="mode-desc">Aqueça com Gridshot, precisão estática, Smoothbot 3D e troca rápida entre alvos com movimento variável.</p>
               <div class="pl-stages-row">
-                <span class="pl-stage-chip"><span class="chip-num">1</span> The Range (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">1</span> Gridshot (30s)</span>
                 <span class="pl-stage-chip"><span class="chip-num">2</span> 1w6ts Static (30s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">3</span> Spray Transfer (30s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">4</span> Retake Clutch (45s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Smoothbot 3D (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">4</span> Target Switch (45s)</span>
               </div>
               <div class="mode-card-bottom">
                 <span class="mode-stats-summary" id="pl-record-warmup">Recorde: —</span>
@@ -419,16 +321,16 @@
             <!-- Playlist 4: Micro-Flick Routine -->
             <div class="playlist-card" data-playlist="micro_flick_routine" id="pl-card-microflick">
               <div class="pl-header">
-                <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ FLICK & DEADZONE</span>
+                <span class="mode-badge-tag" style="color: #a855f7; border-color: #a855f7;">⚡ FLICK & REAÇÃO</span>
                 <span class="pl-stages-count">4 ETAPAS • CIRÚRGICO</span>
               </div>
-              <h2 class="mode-title">MICRO-FLICK & COUNTER-STRAFE</h2>
-              <p class="mode-desc">Perfeito para afiar a precisão em alvos diminutos e a sincronia perfeita de counter-strafe (deadzone) antes de disparar o 1-tap com Vandal ou Sheriff.</p>
+              <h2 class="mode-title">MICRO-FLICK & REAÇÃO</h2>
+              <p class="mode-desc">Treine micro-ajustes em alvos pequenos, precisão estática, reação no Angle Hold e troca rápida entre bolas móveis.</p>
               <div class="pl-stages-row">
                 <span class="pl-stage-chip"><span class="chip-num">1</span> Microshot Alvos (30s)</span>
                 <span class="pl-stage-chip"><span class="chip-num">2</span> Static 1w6ts (30s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">3</span> Hold de Pixel (30s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">4</span> Deadzone Stop (45s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">3</span> Angle Hold (30s)</span>
+                <span class="pl-stage-chip"><span class="chip-num">4</span> Target Switch (45s)</span>
               </div>
               <div class="mode-card-bottom">
                 <span class="mode-stats-summary" id="pl-record-microflick">Recorde: —</span>
@@ -436,24 +338,6 @@
               </div>
             </div>
 
-            <!-- Playlist 5: Spray Defense Routine -->
-            <div class="playlist-card" data-playlist="spray_defense_routine" id="pl-card-spraydefense">
-              <div class="pl-header">
-                <span class="mode-badge-tag" style="color: #ef4444; border-color: #ef4444;">💥 RECUO & DEFESA</span>
-                <span class="pl-stages-count">3 ETAPAS • INTENSO</span>
-              </div>
-              <h2 class="mode-title">SPRAY CONTROL & SITE HOLD</h2>
-              <p class="mode-desc">Mecânicas avançadas de recoil: 5 séries de spray transfer sem desarmar o gatilho, retenção de 12 bots invasores no bomb A e clutch retake final.</p>
-              <div class="pl-stages-row">
-                <span class="pl-stage-chip"><span class="chip-num">1</span> Spray Transfer (45s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">2</span> Defesa 3 Ondas (60s)</span>
-                <span class="pl-stage-chip"><span class="chip-num">3</span> Retake Clutch (45s)</span>
-              </div>
-              <div class="mode-card-bottom">
-                <span class="mode-stats-summary" id="pl-record-spraydefense">Recorde: —</span>
-                <button class="btn-play-sm btn-start-playlist-card" data-playlist="spray_defense_routine">INICIAR ROTINA</button>
-              </div>
-            </div>
           </div>
         </div>
       </div>

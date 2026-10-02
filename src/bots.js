@@ -438,6 +438,12 @@ export class BotManager {
       health: 110,
       strafeDir: Math.random() > 0.5 ? 1 : -1,
       strafeSpeed,
+      speedMultiplier: 1,
+      motionTimer: 0,
+      motionInterval: 0.45 + Math.random() * 0.9,
+      baseY: y,
+      verticalOffset: 0,
+      verticalTarget: 0,
       bounds: { minX: -7.5 + radius, maxX: 7.5 - radius }
     };
 
@@ -773,7 +779,17 @@ export class BotManager {
 
       // Voltaic PatTargetSwitch horizontal fast strafing
       if (bot.type === 'switch_target') {
-        bot.group.position.x += bot.strafeDir * bot.strafeSpeed * dt;
+        bot.motionTimer += dt;
+        if (bot.motionTimer >= bot.motionInterval) {
+          bot.motionTimer = 0;
+          bot.motionInterval = 0.45 + Math.random() * 0.9;
+          if (Math.random() < 0.45) bot.strafeDir *= -1;
+          bot.speedMultiplier = 0.7 + Math.random() * 0.65;
+          bot.verticalTarget = (Math.random() - 0.5) * 0.28;
+        }
+        bot.verticalOffset += (bot.verticalTarget - bot.verticalOffset) * (1 - Math.exp(-6 * dt));
+        bot.group.position.y = bot.baseY + bot.verticalOffset;
+        bot.group.position.x += bot.strafeDir * bot.strafeSpeed * bot.speedMultiplier * dt;
         if (bot.group.position.x > bot.bounds.maxX) {
           bot.group.position.x = bot.bounds.maxX;
           bot.strafeDir = -1;
@@ -867,7 +883,7 @@ export class BotManager {
           const step = bot.strafeSpeed * dt;
           if (dist <= step) {
             bot.group.position.copy(bot.peekEnd);
-            bot.peekState = bot.isJiggle ? 'retracting' : 'holding';
+            bot.peekState = bot.continuousCrossing ? 'done' : (bot.isJiggle ? 'retracting' : 'holding');
           } else {
             dir.normalize().multiplyScalar(step);
             bot.group.position.add(dir);
@@ -885,7 +901,7 @@ export class BotManager {
           }
         }
         if (!bot.hasEmerged && bot.peekState === 'peeking') {
-          const head = bot.group.position.clone().add(new THREE.Vector3(0, 1.55, 0));
+          const head = bot.group.position.clone().add(new THREE.Vector3(0, 1.62 * bot.group.scale.y, 0));
           if (this.hasLineOfSight(playerPosition, head, colliders)) {
             bot.hasEmerged = true;
             bot.peekStartTime = performance.now();

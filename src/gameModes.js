@@ -21,6 +21,10 @@ export const MODES = {
   YPRAC_PEEK_DUEL: 'yprac_peek_duel'
 };
 
+export const AVAILABLE_MODES = [MODES.HOLD_PIXEL, MODES.GRIDSHOT, MODES.MICROSHOT,
+  MODES.TRACKING, MODES.VOLTAIC_STATIC, MODES.VOLTAIC_PASU,
+  MODES.VOLTAIC_SMOOTH, MODES.VOLTAIC_SWITCH];
+
 export class GameModeManager {
   constructor(mapManager, botManager, playerController, weaponManager, soundManager, uiCallbacks) {
     this.mapManager = mapManager;
@@ -30,7 +34,7 @@ export class GameModeManager {
     this.sound = soundManager;
     this.ui = uiCallbacks;
 
-    this.currentMode = MODES.RETAKE;
+    this.currentMode = MODES.HOLD_PIXEL;
     this.isRunning = false;
     this.sessionTimer = 0;
     this.maxTime = 60;
@@ -296,6 +300,7 @@ export class GameModeManager {
   }
 
   startMode(modeId) {
+    if (!AVAILABLE_MODES.includes(modeId)) modeId = MODES.HOLD_PIXEL;
     if (!this.activePlaylist) this.customDuration = null;
     this.currentMode = modeId;
     this.isRunning = true;
@@ -488,6 +493,7 @@ export class GameModeManager {
   }
 
   initHoldPixelMode() {
+    this.botManager.clearAll();
     this.holdMapData = this.mapManager.buildHoldPixelArena(this.holdScenario);
     this.player.setColliders(this.mapManager.colliders);
     this.player.setPosition(this.holdMapData.spawnPos.x, this.holdMapData.spawnPos.y, this.holdMapData.spawnPos.z);
@@ -497,35 +503,31 @@ export class GameModeManager {
     this.maxTime = this.sessionTimer;
     this.reactionTimes = [];
     this.bestReactionTime = Infinity;
+    this.lastHoldReactionMs = null;
 
     this.startHoldPixelRound();
   }
 
   startHoldPixelRound() {
-    this.botManager.clearAll();
     this.holdState = 'waiting_peek';
-
-    // Rebuild map if unpredictable scenario
-    if (this.holdScenario === 'unpredictable') {
-      this.holdMapData = this.mapManager.buildHoldPixelArena(this.holdScenario);
-    }
-
-    // Random delay between 1.2s and 3.6s
-    const randomDelay = (Math.random() * 2.4 + 1.2) / this.difficulty.speed;
+    const fromLeft = Math.random() < 0.5;
+    const speedVariation = this.holdScenario === 'unpredictable' ? 0.8 + Math.random() * 0.4 : 1;
     this.currentHoldBot = this.botManager.spawnPeekingBot(
-      this.holdMapData.peekStart,
-      this.holdMapData.peekEnd,
-      randomDelay,
-      this.holdMapData.strafeSpeed * this.difficulty.speed,
-      this.holdMapData.isJiggle
+      fromLeft ? this.holdMapData.peekStart : this.holdMapData.peekEnd,
+      fromLeft ? this.holdMapData.peekEnd : this.holdMapData.peekStart,
+      0,
+      this.holdMapData.strafeSpeed * this.difficulty.speed * speedVariation,
+      false
     );
     this.currentHoldBot.group.scale.setScalar(this.difficulty.botScale);
+    this.currentHoldBot.continuousCrossing = true;
+    this.currentHoldBot.peekState = 'peeking';
 
     if (this.ui.onHoldPixelPrompt) {
       this.ui.onHoldPixelPrompt({
         state: 'waiting',
-        text: 'SEGURE O PIXEL... PREPARE-SE',
-        reactionMs: null,
+        text: `SEGURE O ÂNGULO • TRAVESSIA CONTÍNUA${this.lastHoldReactionMs == null ? '' : ` • ÚLTIMO: ${this.lastHoldReactionMs} ms`}`,
+        reactionMs: this.lastHoldReactionMs,
         tier: null
       });
     }
@@ -541,6 +543,13 @@ export class GameModeManager {
       return;
     }
 
+    if (!this.currentHoldBot || this.currentHoldBot.isDead || this.currentHoldBot.peekState === 'done') {
+      if (this.currentHoldBot && !this.currentHoldBot.isDead) {
+        this.botManager.removeBot(this.currentHoldBot);
+      }
+      this.startHoldPixelRound();
+    }
+
     if (this.currentHoldBot && !this.currentHoldBot.isDead) {
       if (this.currentHoldBot.hasEmerged && this.holdState === 'waiting_peek') {
         this.holdState = 'bot_visible';
@@ -548,8 +557,8 @@ export class GameModeManager {
         if (this.ui.onHoldPixelPrompt) {
           this.ui.onHoldPixelPrompt({
             state: 'peeking',
-            text: 'ABRIU! ATIRE!',
-            reactionMs: null,
+            text: `ABRIU! ATIRE!${this.lastHoldReactionMs == null ? '' : ` • ÚLTIMO: ${this.lastHoldReactionMs} ms`}`,
+            reactionMs: this.lastHoldReactionMs,
             tier: null
           });
         }
@@ -974,28 +983,6 @@ export class GameModeManager {
     if (!this.isRunning) return;
     if (this.currentMode === MODES.VOLTAIC_SMOOTH) return; // Tracked by time on target.
 
-    // Special check for Hold de Pixel mode
-    if (this.currentMode === MODES.HOLD_PIXEL) {
-      if (this.holdState === 'waiting_peek') {
-        // Player shot too early before bot emerged!
-        if (this.ui.onHoldPixelPrompt) {
-          this.ui.onHoldPixelPrompt({
-            state: 'early',
-            text: 'TIRO ANTECIPADO! (Disparou antes de abrir)',
-            reactionMs: null,
-            tier: 'EARLY'
-          });
-        }
-        this.holdState = 'round_done';
-        setTimeout(() => {
-          if (this.isRunning && this.currentMode === MODES.HOLD_PIXEL) {
-            this.startHoldPixelRound();
-          }
-        }, 1200);
-        return;
-      }
-    }
-
     if (!hitData) {
       // Missed shot
       this.misses++;
@@ -1058,10 +1045,11 @@ export class GameModeManager {
       }
 
       // Calculate score & reaction time for Hold de Pixel
-      if (this.currentMode === MODES.HOLD_PIXEL && this.holdState === 'bot_visible') {
-        const ms = Math.round(performance.now() - this.holdPeekStartTime);
+      if (this.currentMode === MODES.HOLD_PIXEL && hitData.bot.hasEmerged) {
+        const ms = Math.round(performance.now() - hitData.bot.peekStartTime);
         this.reactionTimes.push(ms);
         this.bestReactionTime = Math.min(this.bestReactionTime, ms);
+        this.lastHoldReactionMs = ms;
 
         let tier = '🥉 PRATA / OURO';
         if (ms < 175) {
@@ -1087,14 +1075,6 @@ export class GameModeManager {
 
         const reactionBonus = Math.max(200, 3000 - ms * 8);
         this.score += reactionBonus + (res.isHeadshot ? 500 : 0);
-
-        this.holdState = 'round_done';
-        setTimeout(() => {
-          if (this.isRunning && this.currentMode === MODES.HOLD_PIXEL) {
-            this.startHoldPixelRound();
-          }
-        }, 1200);
-
       } else if (this.currentMode === MODES.VOLTAIC_STATIC) {
         this.voltaicCombo++;
         let mult = 1.0;

@@ -5,7 +5,7 @@ import { WeaponManager } from './weapons.js';
 import { PlayerController } from './player.js';
 import { MapManager } from './maps.js';
 import { BotManager } from './bots.js';
-import { GameModeManager, MODES } from './gameModes.js';
+import { GameModeManager, MODES, AVAILABLE_MODES } from './gameModes.js';
 import { ShootingErrorGraph } from './shootingErrorGraph.js';
 import { PerformanceTracker, PLAYLIST_DEFINITIONS, VOLTAIC_TIERS } from './performance.js';
 import { VFXManager } from './vfx.js';
@@ -72,7 +72,7 @@ const defuseOverlay = document.getElementById('defuse-overlay');
 const defuseBarFill = document.getElementById('defuse-bar-fill');
 
 // Game state
-let selectedMode = MODES.RETAKE;
+let selectedMode = MODES.HOLD_PIXEL;
 let selectedPlaylistId = 'voltaic_benchmark';
 let activeLobbyTab = 'modes';
 let isMouseDown = false;
@@ -98,7 +98,7 @@ const gameModeManager = new GameModeManager(
         [MODES.MICROSHOT]: 'KOVAAKS - MICROSHOT',
         [MODES.TRACKING]: 'STRAFE TRACKING',
         [MODES.RANGE]: 'THE RANGE - TREINO',
-        [MODES.HOLD_PIXEL]: 'HOLD DE PIXEL - REAÇÃO',
+        [MODES.HOLD_PIXEL]: 'ANGLE HOLD - TRAVESSIA CONTÍNUA',
         [MODES.VOLTAIC_STATIC]: 'VOLTAIC 1w6ts - STATIC CLICKING',
         [MODES.VOLTAIC_PASU]: 'VOLTAIC PASU - DYNAMIC BOUNCE',
         [MODES.VOLTAIC_SMOOTH]: 'VOLTAIC - SMOOTHBOT 3D',
@@ -1216,7 +1216,7 @@ const DEFAULT_PLAYER_CONFIG = {
   postBloom: true,
   vfxEnabled: true,
   weapon: 'vandal',
-  mode: 'retake',
+  mode: 'hold_pixel',
   difficulty: 'normal',
   holdScenario: 'ascent_main',
   crosshair: {
@@ -1590,7 +1590,7 @@ function applyAllSettings(config) {
   updateAmmoUI();
 
   // 8. Mode
-  selectedMode = config.mode || MODES.RETAKE;
+  selectedMode = AVAILABLE_MODES.includes(config.mode) ? config.mode : MODES.HOLD_PIXEL;
   gameModeManager.setDifficulty(config.difficulty || 'normal');
   refreshDifficultyUI();
   modeCards.forEach(card => {

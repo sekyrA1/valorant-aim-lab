@@ -27,69 +27,40 @@ export const PLAYLIST_DEFINITIONS = {
       { mode: 'voltaic_pasu', time: 30, title: 'VOLTAIC PASU (DYNAMIC BOUNCE)', tag: 'Dynamic Pasu', desc: 'Acerte orbes dinâmicos em constante ricochete e trajetória variável.' },
       { mode: 'voltaic_smooth', time: 30, title: 'VOLTAIC SMOOTHBOT (3D TRACKING)', tag: 'Smoothbot', desc: 'Rastreamento 3D contínuo e suave com orbe cinemático.' },
       { mode: 'voltaic_switch', time: 30, title: 'VOLTAIC PAT TARGET SWITCH', tag: 'Target Switch', desc: 'Transição rápida entre 4 alvos móveis com foco em velocidade de troca.' },
-      { mode: 'hold_pixel', time: 30, scenario: 'tight_pixel', title: 'HOLD DE PIXEL (CRACK 1MM)', tag: 'Reação Pura', desc: 'Segure a fresta e dispare no primeiro pixel de movimento.' }
-    ]
-  },
-  yprac_ascent: {
-    id: 'yprac_ascent',
-    title: 'YPRAC ASCENT: TACTICAL MASTERY',
-    badge: 'TREINO ESTILO CS YPRAC',
-    badgeColor: '#ff9900',
-    icon: '🎯',
-    subtitle: '5 Etapas • Pre-Aim, Deadzone Duel, Spray Transfer & Retake',
-    desc: 'Inspirado nos clássicos mapas Yprac do Counter-Strike: percurso de 6 checkpoints de pre-aim na Ascent A, duelos de peek com detecção de deadzone, transferências de spray na mesma rajada e defesa de site.',
-    stages: [
-      { mode: 'yprac_preaim', time: 60, title: 'YPRAC PRE-AIM (6 ÂNGULOS)', tag: 'Pre-Aim CS', desc: 'Isolamento de ângulos: limpe Main, Wine, Gen, Default, Heaven e Hell.' },
-      { mode: 'yprac_peek_duel', time: 60, title: 'YPRAC PEEK & JIGGLE DUEL', tag: 'Deadzone CS', desc: 'Counter-strafe limpo: pare 100% o boneco antes do tiro para 1-tap preciso.' },
-      { mode: 'yprac_spray', time: 60, title: 'YPRAC SPRAY TRANSFER', tag: 'Spray Control', desc: 'Elimine múltiplos alvos consecutivos na mesma rajada sem soltar o gatilho.' },
-      { mode: 'yprac_defense', time: 60, title: 'YPRAC SITE DEFENSE (3 ONDAS)', tag: 'Defesa Bomb', desc: 'Segure o bomb A contra 3 ondas coordenadas de invasores armados.' },
-      { mode: 'retake', time: 45, title: 'RETAKE ASCENT A (1v5 CLUTCH)', tag: 'Retake Real', desc: 'Saia da sala segura, limpe as 5 posições e desarme a Spike.' }
+      { mode: 'hold_pixel', time: 30, scenario: 'tight_pixel', title: 'ANGLE HOLD (CRACK 1MM)', tag: 'Reação Pura', desc: 'Segure a fresta e dispare no primeiro pixel de movimento.' }
     ]
   },
   pro_warmup: {
     id: 'pro_warmup',
-    title: 'AQUECIMENTO PRO 5 MINUTOS',
+    title: 'AQUECIMENTO PRÉ-RANQUEADA',
     badge: 'PRÉ-RANQUEADA',
     badgeColor: '#ff4655',
     icon: '🔥',
     subtitle: '4 Etapas • Rotina Rápida de Ativação Motora',
-    desc: 'Aqueça toda a coordenação neuro-motora antes de buscar partida: calibração livre no Range, precisão Voltaic 1w6ts, abertura de ângulos Yprac e retake final.',
+    desc: 'Aqueça com Gridshot, precisão estática, rastreamento e troca rápida entre alvos móveis.',
     stages: [
-      { mode: 'range', time: 30, title: 'THE RANGE: CALIBRAÇÃO', tag: 'Livre', desc: 'Aquecimento livre de punho, braço e movimentação.' },
+      { mode: 'gridshot', time: 30, title: 'GRIDSHOT', tag: 'Flick', desc: 'Aqueça a velocidade de troca entre alvos estáticos.' },
       { mode: 'voltaic_static', time: 30, title: 'VOLTAIC 1w6ts PRECISÃO', tag: 'Precisão', desc: 'Ativação de ritmo, micro-ajuste e combo.' },
-      { mode: 'yprac_spray', time: 30, title: 'YPRAC SPRAY TRANSFER', tag: 'Spray', desc: 'Controle de recuo e transferência rápida de spray.' },
-      { mode: 'retake', time: 45, title: 'RETAKE ASCENT A (CLUTCH)', tag: 'Clutch', desc: 'Fechamento em situação real sob pressão da Spike.' }
+      { mode: 'voltaic_smooth', time: 30, title: 'SMOOTHBOT 3D', tag: 'Tracking', desc: 'Mantenha a mira no alvo em movimento contínuo.' },
+      { mode: 'voltaic_switch', time: 45, title: 'TARGET SWITCH', tag: 'Switch', desc: 'Troque entre alvos com direção e velocidade variáveis.' }
     ]
   },
   micro_flick_routine: {
     id: 'micro_flick_routine',
-    title: 'MICRO-FLICK & COUNTER-STRAFE',
-    badge: 'PRECISÃO & DEADZONE',
+    title: 'MICRO-FLICK & REAÇÃO',
+    badge: 'PRECISÃO & REAÇÃO',
     badgeColor: '#a855f7',
     icon: '🎯',
     subtitle: '4 Etapas • Micro-Ajustes Cirúrgicos & 1-Taps',
-    desc: 'Foco total em precisão de pixel e timing de parada: Microshot de alvos minúsculos, Static 1w6ts, Hold de Pixel e duelo de peek com counter-strafe obrigatório.',
+    desc: 'Treine micro-ajustes, precisão estática, reação no Angle Hold e troca entre alvos móveis.',
     stages: [
       { mode: 'microshot', time: 30, title: 'KOVAAKS MICROSHOT', tag: 'Micro-Alvos', desc: 'Alvos diminutos que forçam micro-correções milimétricas.' },
       { mode: 'voltaic_static', time: 30, title: 'VOLTAIC 1w6ts CLICKING', tag: 'Static', desc: 'Alterne alvos mantendo ritmo constante e alta precisão.' },
-      { mode: 'hold_pixel', time: 30, scenario: 'ascent_main', title: 'HOLD DE PIXEL A-MAIN', tag: 'Reação', desc: 'Reação imediata no primeiro pixel de saída do bot.' },
-      { mode: 'yprac_peek_duel', time: 45, title: 'YPRAC DEADZONE DUEL', tag: '1-Tap Stop', desc: 'Zere a velocidade antes de atirar para garantir precisão máxima.' }
+      { mode: 'hold_pixel', time: 30, scenario: 'ascent_main', title: 'ANGLE HOLD A-MAIN', tag: 'Reação', desc: 'Reação imediata no primeiro pixel de saída do bot.' },
+      { mode: 'voltaic_switch', time: 45, title: 'TARGET SWITCH', tag: 'Switch', desc: 'Troque de alvo enquanto os orbes variam o movimento.' }
     ]
   },
-  spray_defense_routine: {
-    id: 'spray_defense_routine',
-    title: 'SPRAY CONTROL & SITE HOLD',
-    badge: 'CONTROLE DE RECUO',
-    badgeColor: '#ef4444',
-    icon: '💥',
-    subtitle: '3 Etapas • Transferência de Spray & Defesa Sob Pressão',
-    desc: 'Domine a mecânica de recuo do Valorant: transferências consecutivas sem soltar o gatilho, contenção de 12 invasores em ondas e desarme sob fogo inimigo.',
-    stages: [
-      { mode: 'yprac_spray', time: 45, title: 'YPRAC SPRAY TRANSFER (5 SÉRIES)', tag: 'Spray', desc: 'Transfira a rajada entre múltiplos alvos na mesma rajada.' },
-      { mode: 'yprac_defense', time: 60, title: 'YPRAC SITE DEFENSE (3 ONDAS)', tag: 'Defesa Site', desc: 'Elimine os invasores que rusham no bomb antes que dominem o local.' },
-      { mode: 'retake', time: 45, title: 'RETAKE ASCENT A (1v5 CLUTCH)', tag: 'Retake', desc: 'Clutch decisivo sob a contagem regressiva da Spike.' }
-    ]
-  }
+
 };
 
 const STORAGE_KEYS = {
