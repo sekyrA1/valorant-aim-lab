@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { DIFFICULTIES } from './difficulty.js';
 import { isBotPlacementClear } from './spawnSafety.js';
+import { attachBotRig } from './botRig.js';
 
 export class BotManager {
   constructor(scene, soundManager) {
@@ -14,6 +15,8 @@ export class BotManager {
 
   clearAll() {
     this.bots.forEach(bot => {
+      bot.visualDisposed = true;
+      bot.cancelRigAttach?.(); bot.rig?.dispose();
       this.scene.remove(bot.group);
       this.disposeObject(bot.group);
     });
@@ -28,7 +31,7 @@ export class BotManager {
 
   disposeObject(obj) {
     obj.traverse((child) => {
-      if (child.geometry) child.geometry.dispose();
+      if (child.geometry && !child.userData.sharedBotGeometry) child.geometry.dispose();
       if (child.material) {
         if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
         else child.material.dispose();
@@ -37,7 +40,7 @@ export class BotManager {
   }
 
   // Create a Valorant Tactical Training Bot (Humanoid)
-  spawnTacticalBot(x, y, z, rotationY = 0, isAggressive = false, reactionTime = 0.45) {
+  spawnTacticalBot(x, y, z, rotationY = 0, isAggressive = false, reactionTime = 0.45, kind = 'tactical') {
     const group = new THREE.Group();
     group.position.set(x, y, z);
     group.rotation.y = rotationY;
@@ -138,6 +141,11 @@ export class BotManager {
     torsoMesh.userData.bot = botData;
     leftLeg.userData.bot = botData;
     rightLeg.userData.bot = botData;
+
+    botData.cancelRigAttach = attachBotRig(botData, kind, rig => {
+      for (const part of group.children) if (part !== alertMesh && part !== rig.root) { part.visible = false; part.userData.isHitbox = false; }
+      for (const mesh of rig.meshes) Object.assign(mesh.userData, { isHitbox: true, bot: botData });
+    });
 
     this.bots.push(botData);
     return botData;
@@ -526,6 +534,8 @@ export class BotManager {
 
     this.bots.forEach(b => {
       if (!b.isDead) {
+        if (b.rig) b.rig.syncMatrices();
+        else b.group.updateWorldMatrix(true, true);
         b.group.traverse(child => {
           if (child.userData && child.userData.isHitbox) {
             hitboxes.push(child);
@@ -551,7 +561,7 @@ export class BotManager {
       // Only hit bot if bot is in front of the wall
       if (hit.distance < closestWallDist) {
         const bot = hit.object.userData.bot;
-        const zone = hit.object.userData.hitZone || 'body';
+        const zone = bot.rig ? bot.rig.hitZone(hit.point) : hit.object.userData.hitZone || 'body';
         return {
           point: hit.point,
           distance: hit.distance,
@@ -644,10 +654,7 @@ export class BotManager {
     }
 
     // Trigger hit flinch
-    bot.group.position.y += 0.05;
-    setTimeout(() => {
-      if (!bot.isDead) bot.group.position.y -= 0.05;
-    }, 60);
+    if (bot.rig) bot.rig.hit();
 
     if (bot.health <= 0) {
       bot.isDead = true;
@@ -660,20 +667,8 @@ export class BotManager {
   }
 
   triggerBotDeath(bot) {
-    // Quick collapse animation
-    const startTime = performance.now();
-    const startY = bot.group.position.y;
-    const anim = () => {
-      const elapsed = (performance.now() - startTime) / 1000;
-      if (elapsed < 0.25) {
-        bot.group.rotation.x = (elapsed / 0.25) * (Math.PI / 2);
-        bot.group.position.y = startY - (elapsed / 0.25) * 0.6;
-        requestAnimationFrame(anim);
-      } else {
-        this.removeBot(bot);
-      }
-    };
-    anim();
+    bot.rig?.die();
+    bot.deathAnimationTimer = 0;
   }
 
   removeBot(bot) {
@@ -682,6 +677,7 @@ export class BotManager {
       this.bots.splice(idx, 1);
     }
     this.scene.remove(bot.group);
+    bot.visualDisposed = true; bot.cancelRigAttach?.(); bot.rig?.dispose();
     this.disposeObject(bot.group);
   }
 
@@ -855,6 +851,7 @@ export class BotManager {
             const now = performance.now();
             if (now - bot.lastShotTime > 460 * this.difficulty.botFireRate) {
               bot.lastShotTime = now;
+              bot.rig?.fire();
               this.soundManager.playGunfire('phantom');
               if (onPlayerDamaged) {
                 // Inflict damage to player (16-24 dmg)
@@ -909,6 +906,16 @@ export class BotManager {
         }
       }
     });
+
+    // Animate after navigation/peeking, using actual displacement in this frame.
+    for (const bot of [...this.bots]) if (bot.type === 'tactical_bot') {
+      if (bot.isDead) {
+        bot.deathAnimationTimer += dt;
+        bot.rig?.update(dt);
+        if (!bot.rig) bot.group.rotation.x = Math.min(1, bot.deathAnimationTimer / .25) * Math.PI / 2;
+        if (bot.deathAnimationTimer >= (bot.rig?.deathDuration || .25)) this.removeBot(bot);
+      } else bot.rig?.update(dt, bot.animationState);
+    }
 
     // Update Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {

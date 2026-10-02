@@ -1,0 +1,27 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prévia dos bots animados</title>
+<style>body{margin:0;background:#0d1724;color:#d9edf5;font:15px system-ui}header{position:absolute;top:18px;left:24px;right:24px;z-index:2}h1{font-size:23px}button{background:#1e3c50;color:#d9edf5;border:1px solid #56809a;padding:10px 13px;margin:3px;cursor:pointer}button[aria-pressed=true]{background:#367891}#stats{margin:10px 0}canvas{display:block}footer{position:absolute;bottom:20px;left:24px}</style></head><body>
+<header><h1>Bots criados no Blender • IK e SkinnedMesh</h1><nav id="clips"></nav><p id="stats">Carregando modelos…</p></header><footer>Tático • Jett aérea • Neon elétrica | Arraste para girar; scroll para aproximar. Clique no modelo para conferir a zona de impacto.</footer>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {loadBotModels,attachBotRig} from '../src/botRig.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0d1724);
+const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,80);camera.position.set(3.3,2.8,7);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(2,devicePixelRatio));renderer.shadowMap.enabled=true;document.body.appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,.95,0);controls.update();
+scene.add(new THREE.HemisphereLight(0xc4e7ff,0x31445b,2));
+for(const [position,power] of [[[2,5,4],3],[[-4,3,-2],2]]){const light=new THREE.DirectionalLight(0xffffff,power);light.position.set(...position);light.castShadow=true;light.shadow.mapSize.set(2048,2048);light.shadow.bias=-.0004;light.shadow.normalBias=.025;scene.add(light);}
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.MeshStandardMaterial({color:0x172638,roughness:.85}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const actors=[];
+await loadBotModels();
+for(const [i,kind] of ['tactical','jett','neon'].entries()){const group=new THREE.Group();group.position.x=(i-1)*1.7;scene.add(group);const actor={group,kind};attachBotRig(actor,kind);actors.push(actor);}
+let selected='context';
+const names={context:'Contexto do jogo',idle:'Idle',run:'Corrida',strafe_left:'Strafe A',strafe_right:'Strafe D',dash:'Dash',air:'Voo',slide:'Slide',shoot:'Tiro',throw:'Facas',death:'Morte'};
+for(const [id,name] of Object.entries(names)){const button=document.createElement('button');button.textContent=name;button.dataset.clip=id;button.type='button';button.onclick=()=>{selected=id;for(const item of document.querySelectorAll('button'))item.setAttribute('aria-pressed',String(item===button));for(const actor of actors){actor.rig.dead=false;actor.rig.setState(id==='context'?actor.kind==='jett'?'air':actor.kind==='neon'?'slide':'idle':id,0);}};document.querySelector('#clips').appendChild(button);}
+document.querySelector('[data-clip=context]').click();
+document.querySelector('#stats').textContent='3 modelos • 22 ossos por rig • 4 cadeias IK • 10 clips • skeletons independentes';
+const pointer=new THREE.Vector2();const ray=new THREE.Raycaster();
+renderer.domElement.addEventListener('click',event=>{pointer.set(event.clientX/innerWidth*2-1,-event.clientY/innerHeight*2+1);ray.setFromCamera(pointer,camera);const hits=actors.map(actor=>{const hit=actor.rig.raycast(ray.ray.origin,ray.ray.direction);return hit?{...hit,kind:actor.kind}:null;}).filter(Boolean).sort((a,b)=>a.distance-b.distance);if(hits[0])document.querySelector('#stats').textContent=`Impacto: ${hits[0].kind} • ${hits[0].zone}`;});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+const clock=new THREE.Clock();function frame(){requestAnimationFrame(frame);const dt=Math.min(clock.getDelta(),.05);for(const actor of actors){const state=selected==='context'?actor.kind==='jett'?'air':actor.kind==='neon'?'slide':'idle':selected;actor.rig.update(dt,state);}controls.update();renderer.render(scene,camera);}frame();
+</script></body></html>

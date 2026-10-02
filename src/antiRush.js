@@ -214,11 +214,11 @@ export class AntiRushManager {
 
   spawnEnemy(label, lane = 1, dash = false) {
     const x = ASCENT_A.mainX + (Math.random() - .5) * 2.5;
-    const bot = this.botManager.spawnTacticalBot(x, 0, 18.7, Math.PI, false);
+    const bot = this.botManager.spawnTacticalBot(x, 0, 18.7, Math.PI, false, .45, label === 'JETT' ? 'jett' : 'tactical');
     bot.group.scale.setScalar(this.difficulty.botScale);
     bot.label = label;
     bot.isAntiRush = true;
-    if (label === 'JETT') {
+    if (label === 'JETT' && !bot.rig) {
       bot.torsoMesh.material = bot.torsoMesh.material.clone();
       bot.headMesh.material = bot.headMesh.material.clone();
       bot.torsoMesh.material.color.set(0x4dcedd);
@@ -349,6 +349,7 @@ export class AntiRushManager {
   updateEnemy(enemy, dt) {
     const bot = enemy.bot;
     if (bot.isDead) return;
+    bot.animationState = enemy.phase === 'dash' ? 'dash' : undefined;
     const p = bot.group.position;
     if (enemy.phase === 'dash') {
       // Clear the corridor in a straight line before turning toward Jett's landing smoke.
@@ -380,6 +381,7 @@ export class AntiRushManager {
       const reaction = .55 * this.difficulty.reaction * (this.revealedLeft > 0 ? .65 : 1);
       if (enemy.reaction >= reaction && enemy.fireTimer <= 0) {
         enemy.fireTimer = (.75 + Math.random() * .4) * this.difficulty.botFireRate;
+        bot.rig?.fire();
         this.sound.playGunfire('phantom');
         this.callbacks.onDamage?.(Math.round((8 + Math.random() * 5) * this.difficulty.botDamage));
       }

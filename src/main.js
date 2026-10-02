@@ -15,6 +15,9 @@ import { SKILL_TASKS, isSkillMode } from './skillTasks.js';
 import { TrainingAcademy, renderGuidedPlaylists } from './trainingAcademy.js';
 import { TASK_GUIDES, assessTraining } from './trainingGuides.js';
 import { CustomPlaylistStore, CustomPlaylistEditor, escapeHTML } from './customPlaylists.js';
+import { loadBotModels } from './botRig.js';
+
+loadBotModels().catch(error => console.error('Não foi possível carregar os bots do Blender:', error));
 
 // --- THREE.JS SETUP ---
 const container = document.getElementById('canvas-container');

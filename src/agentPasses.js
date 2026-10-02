@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { attachBotRig } from './botRig.js';
 
 const ARENA_BOUNDS = { minX: -15.1, maxX: 15.1, minZ: -13.2, maxZ: 17.2 };
 
@@ -216,6 +217,11 @@ export class AgentPassManager {
       trail: this.createLine(type === 'jett' ? this.jettTrailMaterial : this.neonTrailMaterial)
     };
     actor.glow = visual.glow;
+    actor.cancelRigAttach = attachBotRig(actor, type, rig => {
+      for (const child of actor.group.children) if (child !== rig.root && child !== actor.glow) child.visible = false;
+      const pose = type === 'jett' ? 'air' : 'slide';
+      rig.setState(pose, 0); rig.update(0, pose);
+    });
     actor.trail.visible = true;
     this.actors.push(actor);
     return true;
@@ -235,11 +241,11 @@ export class AgentPassManager {
     this.difficulty = difficulty;
     this.damageCallback = onDamage;
     this.warningCallback = onWarning;
-    this.actors = this.actors.filter(actor => !actor.isDead);
+    this.actors = this.actors.filter(actor => !actor.visualsRemoved);
 
     const maxActors = difficulty.extraTargets < 0 ? 2 : (difficulty.extraTargets > 0 ? 4 : 3);
     this.spawnTimer -= dt;
-    if (this.spawnTimer <= 0 && this.actors.length < maxActors) {
+    if (this.spawnTimer <= 0 && this.actors.filter(actor => !actor.isDead).length < maxActors) {
       this.spawnActor();
       this.spawnTimer = (2.0 + Math.random() * 0.45) * difficulty.botFireRate;
     }
@@ -252,6 +258,14 @@ export class AgentPassManager {
   }
 
   updateActor(actor, dt, player, difficulty) {
+    if (actor.isDead) {
+      actor.deathTimer = (actor.deathTimer || 0) + dt;
+      actor.fallSpeed = (actor.fallSpeed || 0) + 14 * dt;
+      actor.group.position.y = Math.max(.02, actor.group.position.y - actor.fallSpeed * dt);
+      actor.rig?.update(dt);
+      if (actor.deathTimer >= (actor.rig?.deathDuration || 0)) this.removeActorVisuals(actor);
+      return;
+    }
     actor.age += dt;
     actor.progress += (actor.speed * dt) / actor.pathLength;
     if (actor.progress >= 1) {
@@ -272,6 +286,8 @@ export class AgentPassManager {
 
     const face = this.tmpDirection.subVectors(player.position, actor.group.position);
     actor.group.rotation.y = Math.atan2(face.x, face.z);
+    actor.rig?.update(dt, actor.type === 'jett' ? 'air' : 'slide');
+    if (actor.rig) actor.glow.position.copy(actor.group.worldToLocal(this.muzzlePosition(actor)));
     const trailEnd = actor.group.position.clone().addScaledVector(actor.travelDirection, -1.15);
     trailEnd.y += actor.type === 'jett' ? 0.12 : 0.03;
     this.updateLine(actor.trail, trailEnd, actor.group.position);
@@ -279,7 +295,7 @@ export class AgentPassManager {
     if (actor.charging) {
       actor.chargeLeft -= dt;
       actor.glow.scale.setScalar(1.4 + Math.sin(this.elapsed * 25) * 0.35);
-      const muzzle = actor.group.localToWorld(new THREE.Vector3(0, actor.type === 'jett' ? 0.84 : 0.68, 0.38));
+      const muzzle = this.muzzlePosition(actor);
       this.updateLine(actor.warning, muzzle, actor.aimPoint);
       if (actor.chargeLeft <= 0) {
         this.launchVolley(actor, difficulty);
@@ -305,6 +321,7 @@ export class AgentPassManager {
   }
 
   launchVolley(actor, difficulty) {
+    actor.rig?.fire();
     const target = actor.aimPoint;
     const baseDirection = new THREE.Vector3().subVectors(target, actor.group.position).normalize();
     if (actor.type === 'jett') {
@@ -336,7 +353,7 @@ export class AgentPassManager {
       );
       group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction);
     }
-    const muzzle = actor.group.localToWorld(new THREE.Vector3(0, actor.type === 'jett' ? 0.84 : 0.68, 0.38));
+    const muzzle = this.muzzlePosition(actor);
     group.position.copy(muzzle);
     this.scene.add(group);
 
@@ -400,6 +417,11 @@ export class AgentPassManager {
     let closest = null;
     for (const actor of this.actors) {
       if (actor.isDead) continue;
+      if (actor.rig) {
+        const hit = actor.rig.raycast(origin, rayDirection, maxRange);
+        if (hit && (!closest || hit.distance < closest.distance)) closest = { ...hit, bot: actor };
+        continue;
+      }
       const center = actor.group.position.clone().add(new THREE.Vector3(0, actor.headHeight * 0.55, 0));
       const toActor = this.tmpPoint.subVectors(center, origin);
       const distance = toActor.dot(rayDirection);
@@ -424,7 +446,9 @@ export class AgentPassManager {
     actor.health -= Math.max(0, damage || 0) * (isHeadshot ? 2 : 1);
     if (actor.health > 0) return { isKilled: false, isHeadshot };
     actor.isDead = true;
-    this.removeActorVisuals(actor);
+    actor.warning.visible = false; actor.trail.visible = false; actor.glow.visible = false;
+    if (actor.rig) { actor.rig.die(); actor.deathTimer = 0; }
+    else this.removeActorVisuals(actor);
     this.spawnTimer = Math.min(this.spawnTimer, 0.55);
     return { isKilled: true, isHeadshot };
   }
@@ -432,9 +456,19 @@ export class AgentPassManager {
   removeActorVisuals(actor) {
     if (actor.visualsRemoved) return;
     actor.visualsRemoved = true;
+    actor.cancelRigAttach?.(); actor.rig?.dispose();
     this.scene.remove(actor.group, actor.warning, actor.trail);
     actor.warning.geometry.dispose();
     actor.trail.geometry.dispose();
+  }
+
+  muzzlePosition(actor) {
+    if (actor.rig) {
+      const hand = actor.rig.root.getObjectByName('hand_R');
+      actor.rig.syncMatrices();
+      return hand.localToWorld(new THREE.Vector3(0, .12, 0));
+    }
+    return actor.group.localToWorld(new THREE.Vector3(0, actor.type === 'jett' ? .84 : .68, .38));
   }
 
   removeProjectile(projectile) {

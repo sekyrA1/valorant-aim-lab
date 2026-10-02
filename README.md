@@ -187,3 +187,25 @@ Servidor ativo em:
 ```
 http://127.0.0.1:5173/
 ```
+
+## Bots com skinning e animação por IK
+
+Os bots humanoides do Angle Hold, Anti-Rush e Jett & Neon Dodge usam modelos criados no Blender CLI. Há três variantes em `public/models/bots/`: tática, aérea (Jett) e elétrica (Neon), cada uma com 22 ossos deformadores, pesos interpolados nas articulações e quatro cadeias de IK para mãos e pés.
+
+Clips disponíveis: `idle`, `run`, `strafe_left`, `strafe_right`, `dash`, `air`, `slide`, `shoot`, `throw` e `death`. O jogo ajusta a cadência à movimentação real, mistura transições e sobrepõe disparos no tronco sem interromper as pernas. As hitboxes usam a malha deformada, incluindo a cabeça abaixada durante o slide.
+
+Os arquivos `.blend` preservam o rig, constraints e ações dos controles de IK para edição. Para o Three.js, essas poses são amostradas e gravadas em clips GLB; as constraints do Blender não são executadas no navegador. Cada bot recebe seu próprio esqueleto e compartilha a geometria dos modelos carregados.
+
+Para reconstruir os modelos no Windows:
+
+```powershell
+& 'C:/Program Files/Blender Foundation/Blender 5.1/blender.exe' --factory-startup --background --python tools/build_rigged_bots.py
+npm run test:bot-rigs
+```
+
+Com `npm run dev`, abra `/tools/bot-rig-preview.html` para conferir os clips no mesmo controlador usado pelo jogo. Para gerar a imagem das poses deformadas pelo Three.js:
+
+```powershell
+node tools/test_bot_rigs.mjs --snapshots
+& 'C:/Program Files/Blender Foundation/Blender 5.1/blender.exe' --factory-startup --background --python tools/render_bot_rigs.py
+```

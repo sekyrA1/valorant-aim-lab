@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 previews/arms-poses.json
+previews/bot-poses.json
 *.blend1
 
 # Editor directories and files

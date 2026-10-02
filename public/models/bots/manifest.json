@@ -1,0 +1,66 @@
+{
+  "generator": "Blender CLI",
+  "fps": 30,
+  "models": [
+    {
+      "kind": "tactical",
+      "bones": 22,
+      "vertices": 3078,
+      "faces": 2790,
+      "ikChains": 4,
+      "clips": {
+        "idle": 2,
+        "run": 0.8,
+        "strafe_left": 0.8,
+        "strafe_right": 0.8,
+        "dash": 0.6,
+        "air": 1.2,
+        "slide": 1.2,
+        "shoot": 0.3,
+        "throw": 0.5,
+        "death": 0.8
+      },
+      "height": 1.8
+    },
+    {
+      "kind": "air",
+      "bones": 22,
+      "vertices": 3756,
+      "faces": 3386,
+      "ikChains": 4,
+      "clips": {
+        "idle": 2,
+        "run": 0.8,
+        "strafe_left": 0.8,
+        "strafe_right": 0.8,
+        "dash": 0.6,
+        "air": 1.2,
+        "slide": 1.2,
+        "shoot": 0.3,
+        "throw": 0.5,
+        "death": 0.8
+      },
+      "height": 1.8
+    },
+    {
+      "kind": "electric",
+      "bones": 22,
+      "vertices": 3636,
+      "faces": 3278,
+      "ikChains": 4,
+      "clips": {
+        "idle": 2,
+        "run": 0.8,
+        "strafe_left": 0.8,
+        "strafe_right": 0.8,
+        "dash": 0.6,
+        "air": 1.2,
+        "slide": 1.2,
+        "shoot": 0.3,
+        "throw": 0.5,
+        "death": 0.8
+      },
+      "height": 1.8
+    }
+  ]
+}
