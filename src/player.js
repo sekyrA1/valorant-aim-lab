@@ -226,17 +226,15 @@ export class PlayerController {
   }
 
   applyPendingMouseInput() {
-    const pendingTurn = Math.hypot(this.pendingMouseYaw, this.pendingMousePitch);
-    if (pendingTurn === 0) return;
+    const deltaYaw = this.pendingMouseYaw;
+    const deltaPitch = this.pendingMousePitch;
+    if (deltaYaw === 0 && deltaPitch === 0) return;
 
-    // Keep the full mouse distance, but spread an exceptional one-frame turn
-    // over successive frames instead of snapping the view in a single update.
-    const maxTurnPerFrame = THREE.MathUtils.degToRad(45);
-    const scale = Math.min(1, maxTurnPerFrame / pendingTurn);
-    const deltaYaw = this.pendingMouseYaw * scale;
-    const deltaPitch = this.pendingMousePitch * scale;
-    this.pendingMouseYaw -= deltaYaw;
-    this.pendingMousePitch -= deltaPitch;
+    // Apply the complete relative mouse delta on the next camera update.
+    // Carrying part of a large delta into later frames makes the camera keep
+    // turning after the physical mouse movement has already ended.
+    this.pendingMouseYaw = 0;
+    this.pendingMousePitch = 0;
 
     // Active Spray Control Compensation:
     // If the player pulls DOWN (movementY > 0 => deltaPitch > 0) while there is active recoil pitch,
