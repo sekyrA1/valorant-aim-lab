@@ -683,7 +683,72 @@ body, html {
 
 .modes-cards {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  gap: 16px;
+}
+
+.task-category-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-category-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--val-accent-border);
+  background: rgba(255, 255, 255, .04);
+  color: var(--val-light);
+  font-family: var(--font-hud);
+  text-decoration: none;
+}
+
+.task-category-nav a:hover,
+.task-category-nav a:focus-visible {
+  border-color: var(--val-cyan);
+  color: var(--val-cyan);
+}
+
+.task-category-nav span {
+  color: var(--val-gray);
+  font-size: .8rem;
+}
+
+.task-category {
+  scroll-margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--val-accent-border);
+}
+
+.task-category-header {
+  margin-bottom: 16px;
+}
+
+.task-category-header h2 {
+  color: var(--val-light);
+  font-family: var(--font-hud);
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.task-category-header h2 span {
+  margin-left: 10px;
+  color: var(--val-cyan);
+  font-size: .75rem;
+}
+
+.task-category-header p {
+  margin-top: 6px;
+  color: var(--val-gray);
+  font-size: .85rem;
+}
+
+.task-category .mode-card {
+  min-height: 245px;
+  height: auto;
   gap: 16px;
 }
 
