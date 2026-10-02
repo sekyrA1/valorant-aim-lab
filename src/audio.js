@@ -25,7 +25,6 @@ class SoundManager {
   _loadSamples() {
     if (this.samplesLoading || !this.ctx) return;
     const files = {
-      vandal: ['rifle-ak-01.wav', 'rifle-ak-02.wav'],
       phantom: ['rifle-ar-01.wav', 'rifle-ar-02.wav'],
       guardian: ['rifle-ar-01.wav', 'rifle-ar-02.wav'],
       spectre: ['rifle-smg-01.wav'],
@@ -37,7 +36,6 @@ class SoundManager {
       bodyHit: ['hit-body-1.ogg', 'hit-body-2.ogg', 'hit-body-3.ogg', 'hit-body-4.ogg', 'hit-body-5.ogg'],
       headHit: ['hit-head-1.ogg', 'hit-head-2.ogg', 'hit-head-3.ogg', 'hit-head-4.ogg', 'hit-head-5.ogg'],
       targetPop: ['target-pop-1.ogg', 'target-pop-2.ogg', 'target-pop-3.ogg', 'target-pop-4.ogg', 'target-pop-5.ogg'],
-      kill: ['kill-confirm-1.ogg', 'kill-confirm-2.ogg', 'kill-confirm-3.ogg'],
       step: ['footstep-stone-l1.ogg', 'footstep-stone-l2.ogg', 'footstep-stone-l3.ogg',
         'footstep-stone-r1.ogg', 'footstep-stone-r2.ogg', 'footstep-stone-r3.ogg'],
       knife: ['knife-swish.ogg', 'knife-swish-2.ogg'],
@@ -90,41 +88,81 @@ class SoundManager {
   // Gunshot sound tailored by weapon type
   playGunfire(type = 'vandal') {
     if (!this.ctx) return;
-    if (this._playSample(type, type === 'operator' ? 0.68 : 0.52)) return;
+    if (type !== 'vandal' && this._playSample(type, type === 'operator' ? 0.68 : 0.52)) return;
     const now = this.ctx.currentTime;
 
     if (type === 'vandal') {
-      // Punchy, sharp metallic crack + low end punch
-      const osc = this.ctx.createOscillator();
-      const oscGain = this._createGain(now, 0.18, 0.7, 0.001);
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(45, now + 0.15);
-      osc.connect(oscGain);
-      oscGain.connect(this.ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.18);
+      // Original Vandal report: sharp muzzle crack, low receiver punch and a short room tail.
+      const makeNoise = (duration, decay) => {
+        const length = Math.max(1, Math.floor(this.ctx.sampleRate * duration));
+        const buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
+        const samples = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+          samples[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * decay));
+        }
+        return buffer;
+      };
 
-      // Noise crack (snappy transient)
-      const bufferSize = this.ctx.sampleRate * 0.12;
-      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.025));
-      }
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = noiseBuffer;
+      const body = this.ctx.createOscillator();
+      const bodyGain = this._createGain(now, 0.19, 0.43, 0.001);
+      body.type = 'sawtooth';
+      body.frequency.setValueAtTime(132, now);
+      body.frequency.exponentialRampToValueAtTime(39, now + 0.17);
+      body.connect(bodyGain);
+      bodyGain.connect(this.ctx.destination);
+      body.start(now);
+      body.stop(now + 0.19);
 
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1400, now);
-      filter.Q.setValueAtTime(1.5, now);
+      const sub = this.ctx.createOscillator();
+      const subGain = this._createGain(now, 0.12, 0.22, 0.001);
+      sub.type = 'sine';
+      sub.frequency.setValueAtTime(88, now);
+      sub.frequency.exponentialRampToValueAtTime(37, now + 0.11);
+      sub.connect(subGain);
+      subGain.connect(this.ctx.destination);
+      sub.start(now);
+      sub.stop(now + 0.12);
 
-      const noiseGain = this._createGain(now, 0.14, 0.9, 0.001);
-      noise.connect(filter);
-      filter.connect(noiseGain);
-      noiseGain.connect(this.ctx.destination);
-      noise.start(now);
+      const crack = this.ctx.createBufferSource();
+      crack.buffer = makeNoise(0.075, 0.012);
+      const crackFilter = this.ctx.createBiquadFilter();
+      crackFilter.type = 'bandpass';
+      crackFilter.frequency.setValueAtTime(2450, now);
+      crackFilter.frequency.exponentialRampToValueAtTime(1250, now + 0.07);
+      crackFilter.Q.setValueAtTime(0.82, now);
+      const crackGain = this._createGain(now, 0.075, 0.52, 0.001);
+      crack.connect(crackFilter);
+      crackFilter.connect(crackGain);
+      crackGain.connect(this.ctx.destination);
+      crack.start(now);
+
+      const tail = this.ctx.createBufferSource();
+      tail.buffer = makeNoise(0.16, 0.052);
+      const tailFilter = this.ctx.createBiquadFilter();
+      tailFilter.type = 'lowpass';
+      tailFilter.frequency.setValueAtTime(1050, now);
+      const tailGain = this._createGain(now, 0.16, 0.14, 0.001);
+      tail.connect(tailFilter);
+      tailFilter.connect(tailGain);
+      tailGain.connect(this.ctx.destination);
+      tail.start(now);
+
+      const metalTick = this.ctx.createOscillator();
+      const tickGain = this._createGain(now + 0.018, 0.042, 0.18, 0.001);
+      metalTick.type = 'triangle';
+      metalTick.frequency.setValueAtTime(920, now + 0.018);
+      metalTick.frequency.exponentialRampToValueAtTime(360, now + 0.057);
+      metalTick.connect(tickGain);
+      tickGain.connect(this.ctx.destination);
+      metalTick.start(now + 0.018);
+      metalTick.stop(now + 0.06);
+
+      const reflection = this.ctx.createDelay(0.2);
+      const reflectionGain = this._createGain(now + 0.065, 0.17, 0.12, 0.001);
+      reflection.delayTime.setValueAtTime(0.065, now);
+      bodyGain.connect(reflection);
+      reflection.connect(reflectionGain);
+      reflectionGain.connect(this.ctx.destination);
 
     } else if (type === 'phantom') {
       // Suppressed, hollow, tight click
@@ -353,20 +391,20 @@ class SoundManager {
     osc.stop(now + 0.12);
   }
 
-  // Rewarding ammo refill chime on kill!
+  // Quiet magazine top-up tick; the prominent kill-confirm is played separately.
   playAmmoRefill() {
     if (!this.ctx) return;
-    if (this._playSample('kill', 0.45, 1.35)) return;
+    if (this._playSample('reloadMetal', 0.13, 1.15)) return;
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this._createGain(now, 0.14, 0.35, 0.001);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, now); // A5
-    osc.frequency.exponentialRampToValueAtTime(1760, now + 0.08); // A6
-    osc.connect(gain);
+    const latch = this.ctx.createOscillator();
+    const gain = this._createGain(now, 0.055, 0.15, 0.001);
+    latch.type = 'triangle';
+    latch.frequency.setValueAtTime(690, now);
+    latch.frequency.exponentialRampToValueAtTime(290, now + 0.05);
+    latch.connect(gain);
     gain.connect(this.ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.14);
+    latch.start(now);
+    latch.stop(now + 0.055);
   }
 
   // The iconic Valorant Headshot "DINK" sound!
@@ -443,34 +481,51 @@ class SoundManager {
     osc.stop(now + 0.12);
   }
 
-  // Kill chime / Valorant kill banner sound
+  // Original arcade-style kill-confirm stinger
   playKillBanner(streak = 1) {
     if (!this.ctx) return;
     if (this._playSample('kill', 0.5, 0.9 + Math.min(streak, 5) * 0.06)) return;
     const now = this.ctx.currentTime;
-    // Streak pitches: 1st kill = low, 5th ACE = epic high octave
-    const basePitches = [330, 392, 494, 587, 740];
-    const pitch = basePitches[Math.min(streak - 1, basePitches.length - 1)];
+    // Short arcade-style impact followed by a bright, rising reward arpeggio.
+    const streakIndex = Math.max(1, Math.min(5, Math.floor(streak))) - 1;
+    const roots = [520, 565, 620, 690, 770];
+    const root = roots[streakIndex];
 
-    const osc1 = this.ctx.createOscillator();
-    const osc2 = this.ctx.createOscillator();
-    const gain = this._createGain(now, 0.4, 0.6, 0.0001);
+    const impact = this.ctx.createOscillator();
+    const impactGain = this._createGain(now, 0.095, 0.38, 0.001);
+    impact.type = 'triangle';
+    impact.frequency.setValueAtTime(185, now);
+    impact.frequency.exponentialRampToValueAtTime(78, now + 0.085);
+    impact.connect(impactGain);
+    impactGain.connect(this.ctx.destination);
+    impact.start(now);
+    impact.stop(now + 0.095);
 
-    osc1.type = 'triangle';
-    osc1.frequency.setValueAtTime(pitch, now);
-    osc1.frequency.exponentialRampToValueAtTime(pitch * 1.5, now + 0.12);
+    const noteMultipliers = streakIndex >= 3 ? [0.8, 1, 1.26, 1.52] :
+      (streakIndex >= 1 ? [0.84, 1, 1.28] : [0.88, 1, 1.32]);
+    noteMultipliers.forEach((multiplier, index) => {
+      const start = now + 0.018 + index * 0.052;
+      const frequency = root * multiplier;
+      const bell = this.ctx.createOscillator();
+      const bellGain = this._createGain(start, 0.22, index === 0 ? 0.24 : 0.21, 0.0001);
+      bell.type = 'sine';
+      bell.frequency.setValueAtTime(frequency, start);
+      bell.frequency.exponentialRampToValueAtTime(frequency * 0.985, start + 0.2);
+      bell.connect(bellGain);
+      bellGain.connect(this.ctx.destination);
+      bell.start(start);
+      bell.stop(start + 0.22);
 
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(pitch * 2, now);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 0.4);
-    osc2.stop(now + 0.4);
+      const overtone = this.ctx.createOscillator();
+      const overtoneGain = this._createGain(start, 0.13, 0.055, 0.0001);
+      overtone.type = 'sine';
+      overtone.frequency.setValueAtTime(frequency * 2.76, start);
+      overtone.frequency.exponentialRampToValueAtTime(frequency * 2.7, start + 0.12);
+      overtone.connect(overtoneGain);
+      overtoneGain.connect(this.ctx.destination);
+      overtone.start(start);
+      overtone.stop(start + 0.13);
+    });
   }
 
   // Footstep sound
