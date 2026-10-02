@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const SPAWN_HALF_ANGLE = Math.PI / 4;
-const DRONE_SHOTS_TO_KILL = 2;
+const DRONE_SHOTS_TO_KILL = 1;
 const MIN_DRONE_SPAWN_SEPARATION = 1.5;
 
 export class DroneManager {
