@@ -2,6 +2,9 @@ import * as THREE from 'three';
 
 const SPAWN_HALF_ANGLE = Math.PI / 4;
 const DRONE_RADIUS = 0.82;
+const DRONE_SCALE = 0.45;
+const FIRST_SHOT_DELAY_MIN = 0.12;
+const FIRST_SHOT_DELAY_MAX = 0.32;
 
 export class DroneManager {
   constructor(scene) {
@@ -163,7 +166,7 @@ export class DroneManager {
     const difficultySpeed = this.difficulty?.speed ?? 1;
     const moveDirection = this.randomMoveDirection();
     const velocity = moveDirection.multiplyScalar((2.7 + Math.random() * 1.0) * difficultySpeed);
-    visual.group.scale.setScalar(0.7);
+    visual.group.scale.setScalar(DRONE_SCALE);
     const drone = {
       ...visual,
       type: 'drone',
@@ -173,7 +176,8 @@ export class DroneManager {
       velocity,
       desiredVelocity: velocity.clone(),
       directionTimer: 0.35 + Math.random() * 0.65,
-      fireCooldown: 0.6 + Math.random() * 0.6,
+      fireCooldown: FIRST_SHOT_DELAY_MIN +
+        Math.random() * (FIRST_SHOT_DELAY_MAX - FIRST_SHOT_DELAY_MIN),
       charging: false,
       chargeLeft: 0,
       chargeDuration: 0,
