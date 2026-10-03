@@ -11,8 +11,9 @@ export class PlayerController {
     this.RUN_SPEED = 6.75;      // m/s
     this.WALK_SPEED = 3.75;     // m/s
     this.CROUCH_SPEED = 2.0;    // m/s
-    this.ACCELERATION = 48.0;   // snappy acceleration
-    this.DECELERATION = 55.0;   // dead-stopping friction
+    this.ACCELERATION = 110.0;
+    this.DECELERATION = 100.0;
+    this.COUNTER_STRAFE_ACCELERATION = 150.0;
     this.GRAVITY = 24.0;        // snappy Valorant gravity
     this.JUMP_FORCE = 7.4;      // ~1.15m jump height
 
@@ -363,9 +364,10 @@ export class PlayerController {
     if (this.isGrounded) {
       if (hasInput) {
         const targetVel = new THREE.Vector2(wishDir.x * targetMaxSpeed, wishDir.z * targetMaxSpeed);
-        // Accelerate towards target velocity
+        // Opposite input brakes more sharply; normal acceleration has no easing tail.
         const diff = targetVel.clone().sub(currentHorizVel);
-        const maxDelta = this.ACCELERATION * dt;
+        const reversing = currentHorizVel.dot(targetVel) < 0;
+        const maxDelta = (reversing ? this.COUNTER_STRAFE_ACCELERATION : this.ACCELERATION) * dt;
         if (diff.length() > maxDelta) {
           diff.setLength(maxDelta);
         }
@@ -384,7 +386,7 @@ export class PlayerController {
       if (hasInput) {
         const airAccel = 12.0 * dt;
         currentHorizVel.x += wishDir.x * airAccel;
-        currentHorizVel.z += wishDir.z * airAccel;
+        currentHorizVel.y += wishDir.z * airAccel;
         // Cap horizontal speed in air
         if (currentHorizVel.length() > this.RUN_SPEED) {
           currentHorizVel.setLength(this.RUN_SPEED);

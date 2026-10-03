@@ -9,6 +9,7 @@
     "test:ads": "node tools/test_ads.mjs",
     "test:recoil": "node tools/test_recoil.mjs",
     "test:crouch": "node tools/test_crouch.mjs",
+    "test:movement": "node tools/test_movement.mjs",
     "test:session": "node tools/test_session.mjs",
     "test:anti-rush": "node tools/test_anti_rush.mjs",
     "test:skill-tasks": "node tools/test_skill_tasks.mjs",
