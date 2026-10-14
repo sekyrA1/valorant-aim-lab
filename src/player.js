@@ -9,11 +9,11 @@ export class PlayerController {
 
     // Valorant Physical Parameters
     this.RUN_SPEED = 5.75;      // m/s
-    this.WALK_SPEED = 3.75;     // m/s
+    this.WALK_SPEED = 2.99;     // m/s
     this.CROUCH_SPEED = 2.0;    // m/s
-    this.ACCELERATION = 100.0;
+    this.ACCELERATION = 50.0;
     this.DECELERATION = 200.0;
-    this.COUNTER_STRAFE_ACCELERATION = 150.0;
+    this.COUNTER_STRAFE_ACCELERATION = 200.0;
     this.GRAVITY = 24.0;        // snappy Valorant gravity
     this.JUMP_FORCE = 7.4;      // ~1.15m jump height
 
